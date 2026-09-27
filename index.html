@@ -233,15 +233,18 @@ function startApp(DATA,FB){
 const D = DATA.dates.map(s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)});
 const ST=DATA.students, SC=DATA.sched, N=D.length;
 DATA.groups.forEach(g=>Object.assign(g,{kind:'g',cat:'專組'}));
-DATA.rotations.forEach(r=>Object.assign(r,{kind:'r',cat:'輪替組別'}));
+DATA.rotations.forEach(r=>Object.assign(r,{kind:'r',cat:'大班'}));
 const RN={rP34Gr1:'3AB',rP34Gr2:'3CD',rP34Gr3:'P.4',rP5Gr3:'5AC',rP5Gr4:'5BD'}; DATA.rotations.forEach(r=>{if(RN[r.key])r.name=RN[r.key]});
 // 成長機地：分 Group 1（501室）及 Group 2（502室）點名
 const CJ=[['rP5Gr1','賽馬會成長機地 Group 1'],['rP5Gr2','賽馬會成長機地 Group 2']].map(([k,n])=>{const r=DATA.rotations.find(x=>x.key===k);
   r.name=n; r.cat='專組'; Object.keys(r.remarks||{}).forEach(s=>r.remarks[s]=r.remarks[s].replace('Group ','小組 ')); return r});
-const ROLL_G=DATA.groups.flatMap(g=>g.label==='成長機地'?CJ:[g]);
+const SUPPORT=['數學至叻星','童樂遊','LEGO天地','Master Board','乒乓小苗']; // 支援小組
+DATA.groups.forEach(g=>{if(SUPPORT.includes(g.name))g.cat='支援小組'});
+const ROLL_G=DATA.groups.flatMap(g=>g.label==='成長機地'?CJ:(g.cat==='支援小組'?[]:[g]));
+const ROLL_S=DATA.groups.filter(g=>g.cat==='支援小組');
 const NOROLL=r=>/^r6/.test(r.key); // 六年級升中輔導班：不需點名
 const ROLL_R=DATA.rotations.filter(r=>!CJ.includes(r)&&!NOROLL(r));
-const LISTS=[...ROLL_G,...ROLL_R];
+const LISTS=[...ROLL_G,...ROLL_S,...ROLL_R];
 const byKey={}; [...DATA.groups,...DATA.rotations].forEach(l=>byKey[l.key]=l);
 const byLabel={}; DATA.groups.forEach(g=>byLabel[g.label]=g);
 const rotOf={}; DATA.rotations.forEach(r=>r.members.forEach(s=>{if(!rotOf[s])rotOf[s]=r}));
@@ -301,7 +304,8 @@ function listPicker(){
   return `<label class="pick"><span>選擇小組</span><select id="listSel">
     <option value="" ${listKey?'':'selected'}>請選擇小組…</option>
     <optgroup label="專組">${ROLL_G.map(opt).join('')}</optgroup>
-    <optgroup label="輪替組別（合班）">${ROLL_R.map(opt).join('')}</optgroup></select></label>`;
+    <optgroup label="支援小組">${ROLL_S.map(opt).join('')}</optgroup>
+    <optgroup label="大班">${ROLL_R.map(opt).join('')}</optgroup></select></label>`;
 }
 function renderRoll(){
   if(!listKey){$('#main').innerHTML=listPicker()+(db?'':'<div class="warn">點名紀錄服務未連線，現只可查閱名單。</div>')+'<p class="hint">請先在上方選擇你負責的小組，便會顯示上課地點、老師及學生名單。</p><div class="more"><button class="btn" id="csvAll">匯出所有組別全年 CSV</button></div>';return}
@@ -351,7 +355,7 @@ function renderFindRes(){
     h+=hits.length?`<div class="hits">${hits.map(s=>`<button class="chip" data-stu="${s}">${esc(fmt(s))}</button>`).join('')}</div>`:'<div class="empty">找不到學生</div>';}
   else if(!q) h+='<p class="hint" style="margin-top:12px">可查看學生全年每次活動的組別、地點和老師。</p>';
   if(stu){const rm=DATA.stuRemarks[stu];
-    h+=`<div class="panel" style="margin-top:12px"><h2 style="margin:0">${esc(fmt(stu))}</h2>${rotOf[stu]?`<dl class="info" style="margin-top:6px"><dt>合班組別</dt><dd>${esc(rotOf[stu].name)}</dd></dl>`:''}</div>${rm?`<div class="warn">${esc(rm)}</div>`:''}
+    h+=`<div class="panel" style="margin-top:12px"><h2 style="margin:0">${esc(fmt(stu))}</h2>${rotOf[stu]?`<dl class="info" style="margin-top:6px"><dt>大班</dt><dd>${esc(rotOf[stu].name)}</dd></dl>`:''}</div>${rm?`<div class="warn">${esc(rm)}</div>`:''}
     <div class="list sched">${D.map((d,i)=>{const w=whereIs(stu,i);return `<div class="st${i===dateI?' cur':''}"><span class="d">${md(i)}</span><div class="who"><b>${esc(w.what)}</b><small>${esc(w.who)}</small></div><span class="tag">${esc(w.venue)}</span></div>`}).join('')}</div>`;}
   $('#findRes').innerHTML=h;
 }
@@ -405,7 +409,7 @@ function renderCls(){
   if(mode==='year'){
     h+='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,j)=>`<th class="${j===dateI?'cur':''}">${md(j)}</th>`).join('')+'</tr></thead><tbody>'+
       sids.map(s=>`<tr><td class="l">${esc(fmt(s))}</td>`+D.map((d,j)=>{const v=SC[s][j],r=rotOf[s];return `<td class="${v?'':'x'}">${esc(v||(r?r.name:'原班'))}</td>`}).join('')+'</tr>').join('')+
-      '</tbody></table></div><p class="legend">灰字＝參加合班／輪替活動。</p>';
+      '</tbody></table></div><p class="legend">灰字＝參加大班活動。</p>';
   }else{
     h+='<div class="list sched">'+sids.map(s=>{const w=whereIs(s,dateI);return `<div class="st"><div class="who"><b>${esc(fmt(s))}</b><small>${esc(w.what)}</small></div><span class="tag">${esc(w.venue)}</span></div>`}).join('')+'</div>';
   }

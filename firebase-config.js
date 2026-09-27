@@ -14,3 +14,6 @@ export const ALLOWED_DOMAIN = "lwcps.edu.hk";
 
 // 登入方式：Google Workspace
 export const AUTH_PROVIDER = "google";
+
+// 管理員：可在「管理」頁中途新增／刪除組員（須與 firestore.rules 的 isAdmin() 一致）
+export const ADMINS = ["wywong@lwcps.edu.hk", "it@lwcps.edu.hk", "rchen@lwcps.edu.hk"];

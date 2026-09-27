@@ -56,6 +56,7 @@ main{max-width:1080px;margin:0 auto;padding:16px 16px 120px}
 .gate-card h1{margin:0 0 4px;color:var(--blue-d);font-size:24px}
 .gate-card p{color:var(--mute);margin:0 0 20px}
 .gate-card .btn{width:100%;height:50px;font-size:17px}
+#diag{display:none;background:#fff6df;color:#6b4c00;border-radius:10px;padding:12px 14px;margin-top:16px;font-size:14px;line-height:1.7;text-align:left}
 .gate-msg{margin:16px 0 0!important;color:var(--bad)!important;font-size:14px;min-height:1em}
 .out{border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;border-radius:8px;padding:2px 10px;font-size:13px;cursor:pointer;margin-left:6px}
 #who{font-size:12px;color:#b9cdf0}
@@ -144,10 +145,11 @@ td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td
 </style>
 </head>
 <body>
-<div class="gate hide" id="gate"><div class="gate-card">
+<div class="gate" id="gate"><div class="gate-card">
   <h1>樂Kids MI 點名系統</h1><p>樂華天主教小學 2026–2027</p>
-  <button class="btn pri" id="login">以學校帳戶登入</button>
+  <button class="btn pri" id="login" disabled>載入中…</button>
   <p class="gate-msg" id="gateMsg" role="status" aria-live="polite"></p>
+  <div id="diag" role="alert"></div>
 </div></div>
 <header class="top"><div class="top-in">
   <div class="brand"><h1>樂Kids MI 點名系統</h1><span><span id="who"></span> <button class="out" id="logout">登出</button></span></div>
@@ -170,6 +172,15 @@ td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td
   <button class="btn pri" id="allP">未點者全部出席</button>
 </div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+// 載入檢查：如果 Firebase 程式未能載入，按鈕不會有反應，這裏會顯示原因
+(function(){
+  function show(msg){var el=document.getElementById('diag');if(el){el.innerHTML=msg;el.style.display='block'}}
+  if(location.protocol==='file:'){document.addEventListener('DOMContentLoaded',function(){show('此頁面是從電腦檔案直接打開（網址以 file:// 開頭），瀏覽器會封鎖登入程式。<br>請改用 GitHub Pages 網址打開，例如 <b>https://你的帳號.github.io/repository名稱/admin.html</b>。')}) ;return}
+  window.addEventListener('error',function(e){if(e&&e.message)show('程式載入錯誤：'+e.message)});
+  setTimeout(function(){if(!window.__miReady)show('登入程式未能載入。請檢查：<br>① <b>firebase-config.js</b> 是否已上載到 GitHub，並與此頁放在同一資料夾（檔名大小寫要相同）；<br>② 學校網絡是否封鎖了 www.gstatic.com；<br>③ 按 Ctrl+Shift+R（Mac：Cmd+Shift+R）強制重新整理。')},8000);
+})();
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -185,7 +196,9 @@ function provider(){ if(AUTH_PROVIDER==='microsoft'){const p=new OAuthProvider('
   const p=new GoogleAuthProvider(); p.setCustomParameters(ALLOWED_DOMAIN?{hd:ALLOWED_DOMAIN,prompt:'select_account'}:{prompt:'select_account'}); return p }
 document.getElementById('login').onclick=async()=>{ gateMsg.textContent='';
   try{ await signInWithPopup(auth,provider()); }
-  catch(e){ if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment') await signInWithRedirect(auth,provider()); else gateMsg.textContent='登入失敗：'+(e.code||e.message); } };
+  catch(e){ console.error(e); if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment') await signInWithRedirect(auth,provider());
+    else gateMsg.textContent='登入失敗：'+({'auth/unauthorized-domain':'此網址未加入 Firebase「已授權的網域」，請通知管理員。','auth/popup-closed-by-user':'登入視窗已關閉，請再按一次。','auth/network-request-failed':'網絡連線失敗，請再試。'}[e.code]||e.code||e.message); } };
+document.getElementById('login').disabled=false; document.getElementById('login').textContent='以學校帳戶登入'; window.__miReady=true;
 getRedirectResult(auth).catch(e=>{gateMsg.textContent='登入失敗：'+(e.code||e.message)});
 document.getElementById('logout').onclick=()=>signOut(auth).then(()=>location.reload());
 let started=false;

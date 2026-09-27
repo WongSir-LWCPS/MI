@@ -10,14 +10,16 @@ main{max-width:640px;margin:0 auto;padding:20px}
 .card{border:1px solid #dbe3ef;border-radius:14px;padding:18px;margin-bottom:14px}
 button{font:inherit;background:#1a5fd0;color:#fff;border:0;border-radius:10px;padding:10px 18px;cursor:pointer}
 button:disabled{opacity:.45;cursor:not-allowed}
-.mute{color:#5a6b82;font-size:14px}.ok{color:#1f9d63}.bad{color:#d23c3c}
+.mute{color:#5a6b82;font-size:14px}
+#diag{display:none;background:#fff6df;color:#6b4c00;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:14px;line-height:1.7}.ok{color:#1f9d63}.bad{color:#d23c3c}
 input[type=file]{margin:10px 0}
 </style>
 </head>
 <body>
 <header><h1>MI 點名系統：管理員上載名單</h1></header>
 <main>
-  <div class="card"><div id="who" class="mute">未登入</div><p><button id="login">以學校帳戶登入</button></p></div>
+  <div id="diag" role="alert"></div>
+  <div class="card"><div id="who" class="mute">未登入</div><p><button id="login" disabled>載入中…</button></p><p id="loginMsg" class="bad"></p></div>
   <div class="card">
     <b>目前雲端名單</b><p id="cur" class="mute">—</p>
   </div>
@@ -29,18 +31,39 @@ input[type=file]{margin:10px 0}
     <p id="msg"></p>
   </div>
 </main>
+<script>
+// 載入檢查：如果 Firebase 程式未能載入，按鈕不會有反應，這裏會顯示原因
+(function(){
+  function show(msg){var el=document.getElementById('diag');if(el){el.innerHTML=msg;el.style.display='block'}}
+  if(location.protocol==='file:'){document.addEventListener('DOMContentLoaded',function(){show('此頁面是從電腦檔案直接打開（網址以 file:// 開頭），瀏覽器會封鎖登入程式。<br>請改用 GitHub Pages 網址打開，例如 <b>https://你的帳號.github.io/repository名稱/admin.html</b>。')}) ;return}
+  window.addEventListener('error',function(e){if(e&&e.message)show('程式載入錯誤：'+e.message)});
+  setTimeout(function(){if(!window.__miReady)show('登入程式未能載入。請檢查：<br>① <b>firebase-config.js</b> 是否已上載到 GitHub，並與此頁放在同一資料夾（檔名大小寫要相同）；<br>② 學校網絡是否封鎖了 www.gstatic.com；<br>③ 按 Ctrl+Shift+R（Mac：Cmd+Shift+R）強制重新整理。')},8000);
+})();
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig, ALLOWED_DOMAIN, AUTH_PROVIDER } from "./firebase-config.js";
 const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app);
 const $=id=>document.getElementById(id);
 const prov=()=>{if(AUTH_PROVIDER==='microsoft')return new OAuthProvider('microsoft.com');const p=new GoogleAuthProvider();if(ALLOWED_DOMAIN)p.setCustomParameters({hd:ALLOWED_DOMAIN});return p};
-$('login').onclick=()=>signInWithPopup(auth,prov()).catch(e=>$('who').textContent='登入失敗：'+e.code);
+const ERR={'auth/unauthorized-domain':'此網址未加入 Firebase「已授權的網域」。請到 Firebase → Authentication → 設定 → 已授權的網域，加入 '+location.hostname+'。',
+ 'auth/operation-not-allowed':'Firebase 未啟用 Google 登入。請到 Authentication → 登入方式，啟用 Google。',
+ 'auth/popup-closed-by-user':'登入視窗已關閉，請再按一次登入。','auth/cancelled-popup-request':'請再按一次登入。',
+ 'auth/network-request-failed':'網絡連線失敗，請檢查網絡後再試。','auth/invalid-api-key':'firebase-config.js 的 apiKey 不正確。'};
+const loginErr=e=>{console.error(e);$('loginMsg').textContent='登入失敗：'+(ERR[e.code]||e.code||e.message)};
+$('login').onclick=async()=>{$('loginMsg').textContent='';$('login').disabled=true;$('login').textContent='登入中…';
+  try{await signInWithPopup(auth,prov())}
+  catch(e){ if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'){ try{await signInWithRedirect(auth,prov());return}catch(e2){loginErr(e2)} } else loginErr(e); }
+  $('login').disabled=false;$('login').textContent='以學校帳戶登入';};
+getRedirectResult(auth).catch(loginErr);
+$('login').disabled=false;$('login').textContent='以學校帳戶登入';
+window.__miReady=true;
 let text=null;
 onAuthStateChanged(auth,async u=>{
   if(!u) return;
+  if(ALLOWED_DOMAIN&&!u.email.toLowerCase().endsWith('@'+ALLOWED_DOMAIN)){ $('who').textContent='請使用 @'+ALLOWED_DOMAIN+' 帳戶登入（現為 '+u.email+'）'; return; }
   $('who').textContent='已登入：'+u.email;
   try{const s=await getDoc(doc(db,'config','roster'));
     if(s.exists()){const d=s.data();const j=JSON.parse(d.json);

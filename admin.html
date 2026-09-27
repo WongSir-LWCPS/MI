@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MI 點名系統｜管理員：上載名單</title>
+<style>
+body{margin:0;font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:#fff;color:#122033}
+header{background:#0e3f8f;color:#fff;padding:16px 20px}header h1{margin:0;font-size:20px}
+main{max-width:640px;margin:0 auto;padding:20px}
+.card{border:1px solid #dbe3ef;border-radius:14px;padding:18px;margin-bottom:14px}
+button{font:inherit;background:#1a5fd0;color:#fff;border:0;border-radius:10px;padding:10px 18px;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+.mute{color:#5a6b82;font-size:14px}.ok{color:#1f9d63}.bad{color:#d23c3c}
+input[type=file]{margin:10px 0}
+</style>
+</head>
+<body>
+<header><h1>MI 點名系統：管理員上載名單</h1></header>
+<main>
+  <div class="card"><div id="who" class="mute">未登入</div><p><button id="login">以學校帳戶登入</button></p></div>
+  <div class="card">
+    <b>目前雲端名單</b><p id="cur" class="mute">—</p>
+  </div>
+  <div class="card">
+    <b>上載新名單</b>
+    <p class="mute">選擇由 Claude 產生的名單資料檔（例如 mi-data-2026-27.json）。上載後，老師重新整理網頁便會看到新名單；已點名的紀錄不受影響。</p>
+    <input type="file" id="file" accept=".json,application/json"><br>
+    <button id="up" disabled>上載</button>
+    <p id="msg"></p>
+  </div>
+</main>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { firebaseConfig, ALLOWED_DOMAIN, AUTH_PROVIDER } from "./firebase-config.js";
+const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app);
+const $=id=>document.getElementById(id);
+const prov=()=>{if(AUTH_PROVIDER==='microsoft')return new OAuthProvider('microsoft.com');const p=new GoogleAuthProvider();if(ALLOWED_DOMAIN)p.setCustomParameters({hd:ALLOWED_DOMAIN});return p};
+$('login').onclick=()=>signInWithPopup(auth,prov()).catch(e=>$('who').textContent='登入失敗：'+e.code);
+let text=null;
+onAuthStateChanged(auth,async u=>{
+  if(!u) return;
+  $('who').textContent='已登入：'+u.email;
+  try{const s=await getDoc(doc(db,'config','roster'));
+    if(s.exists()){const d=s.data();const j=JSON.parse(d.json);
+      $('cur').textContent=`版本：${j.version||'—'}　學生：${Object.keys(j.students).length} 人　專組：${j.groups.length}　輪替組別：${j.rotations.length}　上載者：${d.by||'—'}`;}
+    else $('cur').textContent='尚未上載名單。';
+  }catch(e){$('cur').innerHTML=`<span class="bad">讀取失敗（${e.code}），請確認此帳戶屬學校網域。</span>`}
+  refresh();
+});
+$('file').onchange=async e=>{const f=e.target.files[0];text=null;$('msg').textContent='';
+  if(!f)return refresh();
+  try{const t=await f.text();const j=JSON.parse(t);
+    if(!j.dates||!j.students||!j.groups||!j.rotations||!j.sched) throw new Error('格式不符');
+    text=t;$('msg').innerHTML=`<span class="mute">檔案正確：${j.version||''}，學生 ${Object.keys(j.students).length} 人，活動 ${j.dates.length} 次。</span>`;
+  }catch(err){$('msg').innerHTML=`<span class="bad">無法讀取檔案：${err.message}</span>`}
+  refresh();};
+function refresh(){$('up').disabled=!(auth.currentUser&&text)}
+$('up').onclick=async()=>{$('up').disabled=true;$('msg').textContent='上載中…';
+  try{await setDoc(doc(db,'config','roster'),{json:text,by:auth.currentUser.email,t:serverTimestamp()});
+    $('msg').innerHTML='<span class="ok">上載成功。</span>';}
+  catch(e){$('msg').innerHTML=`<span class="bad">上載失敗（${e.code}）。只有 firestore.rules 內列明的管理員可以上載。</span>`}
+  refresh();};
+</script>
+</body>
+</html>

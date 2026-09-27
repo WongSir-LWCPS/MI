@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>樂Kids MI 點名系統 2026–2027</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blue:#1a5fd0; --blue-d:#0e3f8f; --blue-l:#e8f0fc; --blue-m:#c5d8f6;
+  --bg:#ffffff; --bg2:#ffffff; --card:#ffffff; --ink:#122033; --mute:#5a6b82; --line:#dbe3ef;
+  --ok:#1a5fd0; --late:#d98a00; --ex:#6b7a90; --bad:#d23c3c; --done:#1f9d63;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",system-ui,sans-serif;
+  color-scheme:light; box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 120px)}
+body{margin:0;background:var(--bg2);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid #f5b400;outline-offset:2px}
+.hide{display:none!important}
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--blue-d);color:#fff}
+.top-in{max-width:1080px;margin:0 auto;padding:12px 16px 0}
+.brand{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand h1{margin:0;font-size:19px;font-weight:700;letter-spacing:.02em}
+.brand span{font-size:13px;color:#b9cdf0}
+.datebar{display:flex;align-items:center;gap:8px;margin:10px 0 0}
+.datebar .arrow{width:40px;height:40px;border-radius:10px;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:20px;cursor:pointer;flex:0 0 auto}
+.datebar .arrow:disabled{opacity:.35;cursor:default}
+.datebar select{flex:1;min-width:0;height:40px;border-radius:10px;border:0;padding:0 12px;background:#fff;color:#0e2a55;font-weight:700;font-size:16px}
+.nav{display:flex;gap:4px;margin-top:10px}
+.nav button{flex:1;min-width:0;white-space:nowrap;border:0;background:transparent;color:#c9daf6;padding:10px 0 12px;font-size:15.5px;cursor:pointer;border-bottom:3px solid transparent}
+.nav button[aria-current="page"]{color:#fff;font-weight:700;border-bottom-color:#fff}
+main{max-width:1080px;margin:0 auto;padding:16px 16px 120px}
+/* home */
+.hint{color:var(--mute);font-size:14px;margin:2px 2px 14px}
+.sec{margin:18px 2px 8px;font-size:15px;font-weight:700;color:var(--blue-d)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.card{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer}
+.card:hover{border-color:var(--blue)}
+.card .t{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card .t b{font-size:17px}
+.card .v{font-size:14px;color:var(--mute);margin-top:2px}
+.card .bar{height:6px;border-radius:3px;background:var(--blue-l);margin-top:10px;overflow:hidden}
+.card .bar i{display:block;height:100%;background:var(--blue)}
+.card .bar i.full{background:var(--done)}
+.card .n{font-size:13px;color:var(--mute);white-space:nowrap}
+.card.off{opacity:.55}
+.card.recent{border:2px solid var(--blue)}
+@media (max-width:480px){.nav button{font-size:14px;padding:9px 0 11px}}
+/* login gate */
+.gate{position:fixed;inset:0;z-index:50;background:var(--blue-d);display:flex;align-items:center;justify-content:center;padding:24px}
+.gate-card{background:#fff;border-radius:18px;padding:32px 28px;max-width:380px;width:100%;text-align:center}
+.gate-card h1{margin:0 0 4px;color:var(--blue-d);font-size:24px}
+.gate-card p{color:var(--mute);margin:0 0 20px}
+.gate-card .btn{width:100%;height:50px;font-size:17px}
+.gate-msg{margin:16px 0 0!important;color:var(--bad)!important;font-size:14px;min-height:1em}
+.out{border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;border-radius:8px;padding:2px 10px;font-size:13px;cursor:pointer;margin-left:6px}
+#who{font-size:12px;color:#b9cdf0}
+@media (max-width:480px){#who{display:none}}
+/* pickers */
+.pick{display:block;margin:0 0 14px}
+.pick span{display:block;font-size:14px;color:var(--mute);margin:0 2px 4px}
+.pick select{width:100%;height:50px;border:2px solid var(--blue);border-radius:12px;padding:0 14px;background:#fff;font-size:17px;font-weight:700;color:var(--blue-d)}
+/* roll call */
+.back{border:0;background:transparent;color:var(--blue);font-size:15px;padding:4px 0;cursor:pointer;margin-bottom:6px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.panel h2{margin:0 0 6px;font-size:24px}
+.info{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:15px}
+.info dt{color:var(--mute)} .info dd{margin:0;font-weight:500}
+.info dd.big{font-weight:700;color:var(--blue)}
+.seg{display:inline-flex;background:var(--blue-l);border-radius:10px;padding:3px;margin:4px 0 12px}
+.seg button{border:0;background:transparent;padding:6px 16px;border-radius:8px;cursor:pointer;color:var(--mute)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.warn{background:#fff6df;color:#6b4c00;border-radius:10px;padding:10px 14px;font-size:14px;margin-bottom:12px}
+.list{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.st{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
+.st:first-child{border-top:0}
+.st .who{flex:1;min-width:0}
+.st .who b{display:block;font-size:18px;font-weight:500}
+.st .who small{color:var(--mute);font-size:13px}
+.st .who em{display:block;font-style:normal;color:var(--mute);font-size:12.5px}
+.st.P{background:linear-gradient(90deg,var(--blue-l),transparent 70%)}
+.st.A{background:linear-gradient(90deg,rgba(210,60,60,.1),transparent 70%)}
+.st.E{background:linear-gradient(90deg,rgba(107,122,144,.12),transparent 70%)}
+.st.L{background:linear-gradient(90deg,rgba(217,138,0,.12),transparent 70%)}
+.btns{display:flex;gap:6px;flex:0 0 auto}
+.btns button{width:56px;height:46px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);cursor:pointer;font-size:15px;font-weight:500}
+@media (max-width:420px){.btns button{width:48px;height:44px;font-size:14px}}
+.btns button[data-v="P"][aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
+.btns button[data-v="E"][aria-pressed="true"]{background:var(--ex);border-color:var(--ex);color:#fff}
+.btns button[data-v="A"][aria-pressed="true"]{background:var(--bad);border-color:var(--bad);color:#fff}
+.btns button:disabled{opacity:.4;cursor:not-allowed}
+details.away{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+details.away summary{padding:12px 14px;cursor:pointer;color:var(--mute);font-size:14.5px}
+details.away .st{padding:8px 14px}
+details.away .st .who b{font-size:16px;color:var(--mute)}
+.tag{font-size:13px;color:var(--mute);text-align:right;flex:0 0 auto;max-width:48%}
+.more{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 16px;cursor:pointer;font-size:15px}
+.btn:hover{border-color:var(--blue)}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+/* bottom bar */
+.foot{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 16px rgba(14,63,143,.08)}
+.foot-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cnt{display:flex;gap:12px;flex:1;flex-wrap:wrap;font-size:14px;color:var(--mute)}
+@media (max-width:480px){.cnt{gap:8px;font-size:12.5px}.cnt b{font-size:17px}.foot .btn.pri{padding:9px 12px;font-size:14px}}
+.cnt b{font-size:20px;color:var(--ink);margin-left:3px}
+.cnt .c-P b{color:var(--ok)} .cnt .c-E b{color:var(--ex)} .cnt .c-A b{color:var(--bad)}
+/* tables */
+.tw{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;font-size:13.5px;min-width:100%}
+th,td{border-bottom:1px solid var(--line);padding:6px 7px;text-align:center;white-space:nowrap}
+th{background:var(--blue-l);color:var(--blue-d);font-weight:500;font-size:12.5px;position:sticky;top:0}
+td.l,th.l{text-align:left;position:sticky;left:0;background:var(--card);z-index:1}
+th.l{background:var(--blue-l)}
+th.cur{background:var(--blue);color:#fff}
+td.x{color:var(--mute);font-size:12px}
+td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td.E{color:var(--ex);font-weight:700} td.A{color:var(--bad);font-weight:700}
+.legend{font-size:13px;color:var(--mute);margin:8px 2px}
+/* search + class */
+.field{width:100%;height:46px;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;background:var(--card);font-size:16px}
+.field:focus{border-color:var(--blue);outline:none}
+.hits{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:#fff}
+.sched .st{padding:9px 14px}
+.sched .d{width:52px;font-variant-numeric:tabular-nums;color:var(--mute);flex:0 0 auto}
+.sched .st.cur{background:var(--blue-l)}
+.sched .who b{font-size:16px}
+.empty{padding:30px 10px;text-align:center;color:var(--mute)}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#0e2a55;color:#fff;padding:9px 18px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+@media print{
+  .top,.foot,.btns,.more,.seg,.back,.toast,.warn{display:none!important}
+  body{background:#fff} main{padding:0}
+  .st .who{flex:0 0 60%} .st::after{content:"";flex:1;border-bottom:1px solid #999;height:24px}
+  details.away{display:none}
+}
+</style>
+</head>
+<body>
+<div class="gate hide" id="gate"><div class="gate-card">
+  <h1>樂Kids MI 點名系統</h1><p>樂華天主教小學 2026–2027</p>
+  <button class="btn pri" id="login">以學校帳戶登入</button>
+  <p class="gate-msg" id="gateMsg" role="status" aria-live="polite"></p>
+</div></div>
+<header class="top"><div class="top-in">
+  <div class="brand"><h1>樂Kids MI 點名系統</h1><span><span id="who"></span> <button class="out" id="logout">登出</button></span></div>
+  <div class="datebar">
+    <button class="arrow" id="prev" aria-label="上一次">‹</button>
+    <select id="date" aria-label="活動日期"></select>
+    <button class="arrow" id="next" aria-label="下一次">›</button>
+  </div>
+  <nav class="nav">
+    <button data-page="roll" aria-current="page">點名</button>
+    <button data-page="find" aria-current="false">搜尋學生</button>
+    <button data-page="grp" aria-current="false">專組名單</button>
+    <button data-page="cls" aria-current="false">班別名單</button>
+    <button data-page="me" aria-current="false">我的小組</button>
+  </nav>
+</div></header>
+<main id="main"></main>
+<div class="foot hide" id="foot"><div class="foot-in">
+  <div class="cnt" id="cnt"></div>
+  <button class="btn pri" id="allP">未點者全部出席</button>
+</div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, setDoc, getDocs, collection, query, where, onSnapshot, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { firebaseConfig, ALLOWED_DOMAIN, AUTH_PROVIDER } from "./firebase-config.js";
+
+const fbApp=initializeApp(firebaseConfig);
+const auth=getAuth(fbApp);
+let fdb; try{ fdb=initializeFirestore(fbApp,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})}); }catch(e){ fdb=initializeFirestore(fbApp,{}); }
+const FB={db:fdb,doc,setDoc,getDocs,collection,query,where,onSnapshot,deleteField,serverTimestamp,email:()=>auth.currentUser?.email||''};
+const gate=document.getElementById('gate'), gateMsg=document.getElementById('gateMsg');
+function provider(){ if(AUTH_PROVIDER==='microsoft'){const p=new OAuthProvider('microsoft.com');p.setCustomParameters({prompt:'select_account'});return p}
+  const p=new GoogleAuthProvider(); p.setCustomParameters(ALLOWED_DOMAIN?{hd:ALLOWED_DOMAIN,prompt:'select_account'}:{prompt:'select_account'}); return p }
+document.getElementById('login').onclick=async()=>{ gateMsg.textContent='';
+  try{ await signInWithPopup(auth,provider()); }
+  catch(e){ if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment') await signInWithRedirect(auth,provider()); else gateMsg.textContent='登入失敗：'+(e.code||e.message); } };
+getRedirectResult(auth).catch(e=>{gateMsg.textContent='登入失敗：'+(e.code||e.message)});
+document.getElementById('logout').onclick=()=>signOut(auth).then(()=>location.reload());
+let started=false;
+onAuthStateChanged(auth,async user=>{
+  if(!user){ gate.classList.remove('hide'); return; }
+  if(ALLOWED_DOMAIN && !String(user.email||'').toLowerCase().endsWith('@'+ALLOWED_DOMAIN.toLowerCase())){
+    gateMsg.textContent=`請使用學校電郵（@${ALLOWED_DOMAIN}）登入。`; await signOut(auth); gate.classList.remove('hide'); return; }
+  document.getElementById('who').textContent=user.email;
+  gateMsg.textContent='正在載入名單…';
+  try{
+    const snap=await getDoc(doc(fdb,'config','roster'));
+    if(!snap.exists()){ gateMsg.textContent='名單尚未上載，請管理員先在 admin.html 上載名單資料。'; gate.classList.remove('hide'); return; }
+    const DATA=JSON.parse(snap.data().json);
+    gate.classList.add('hide');
+    if(!started){ started=true; startApp(DATA,FB); }
+  }catch(e){ console.error(e); gateMsg.textContent=e.code==='permission-denied'?'你的帳戶沒有權限查看名單，請聯絡管理員。':'載入名單失敗：'+(e.code||e.message); gate.classList.remove('hide'); }
+});
+
+function startApp(DATA,FB){
+const D = DATA.dates.map(s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)});
+const ST=DATA.students, SC=DATA.sched, N=D.length;
+DATA.groups.forEach(g=>Object.assign(g,{kind:'g',cat:'專組'}));
+DATA.rotations.forEach(r=>Object.assign(r,{kind:'r',cat:'輪替組別'}));
+const RN={rP34Gr1:'3AB',rP34Gr2:'3CD',rP34Gr3:'P.4',rP5Gr3:'5AC',rP5Gr4:'5BD'}; DATA.rotations.forEach(r=>{if(RN[r.key])r.name=RN[r.key]});
+// 成長機地：分 Group 1（501室）及 Group 2（502室）點名
+const CJ=[['rP5Gr1','賽馬會成長機地 Group 1'],['rP5Gr2','賽馬會成長機地 Group 2']].map(([k,n])=>{const r=DATA.rotations.find(x=>x.key===k);
+  r.name=n; r.cat='專組'; Object.keys(r.remarks||{}).forEach(s=>r.remarks[s]=r.remarks[s].replace('Group ','小組 ')); return r});
+const ROLL_G=DATA.groups.flatMap(g=>g.label==='成長機地'?CJ:[g]);
+const NOROLL=r=>/^r6/.test(r.key); // 六年級升中輔導班：不需點名
+const ROLL_R=DATA.rotations.filter(r=>!CJ.includes(r)&&!NOROLL(r));
+const LISTS=[...ROLL_G,...ROLL_R];
+const byKey={}; [...DATA.groups,...DATA.rotations].forEach(l=>byKey[l.key]=l);
+const byLabel={}; DATA.groups.forEach(g=>byLabel[g.label]=g);
+const rotOf={}; DATA.rotations.forEach(r=>r.members.forEach(s=>{if(!rotOf[s])rotOf[s]=r}));
+const MARK={P:'出席',A:'缺席',E:'豁免',L:'遲到'}; // L：舊紀錄，只作顯示
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ymd=i=>DATA.dates[i].replace(/-/g,'');
+const fmt=s=>`${s.slice(0,2)}(${s.slice(2)}) ${ST[s][0]}`;
+const md=i=>`${D[i].getDate()}/${D[i].getMonth()+1}`;
+const $=s=>document.querySelector(s);
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+let grp=store.get('mi-grp')||DATA.groups[0].key; if(!DATA.groups.some(g=>g.key===grp)) grp=DATA.groups[0].key;
+let page='roll', listKey=null, dateI=pickDate(), mode='day', cls=store.get('mi-cls')||'1A', q='', stu=null;
+let db=null, canWrite=true, dayAtt={}, yearAtt={}, unDay=null, unYear=null;
+const chain={};
+function pickDate(){const t=new Date();t.setHours(0,0,0,0);const i=D.findIndex(d=>d>=t);return i<0?N-1:i}
+function isToday(i){const t=new Date();t.setHours(0,0,0,0);return +D[i]===+t}
+
+function status(L,s,i){
+  const v=SC[s][i];
+  if(L.kind==='g'){ if(v===L.label) return {exp:true}; return {exp:false,why:v?`往 ${v}`:'本組當日不設節數'} }
+  if(v===L.expect) return {exp:true};
+  return {exp:false,why:`往 ${v}`};
+}
+function perOf(L,i){return L.kind==='g'?{act:L.name,teachers:L.teachers,venue:L.venue}:L.per[i]}
+function whereIs(s,i){
+  const v=SC[s][i];
+  if(!v||v==='成長機地'){const r=rotOf[s]; if(r){const p=r.per[i];return {what:`${r.name}　${p.act}`,venue:p.venue,who:p.teachers}}}
+  const g=byLabel[v]; return g?{what:g.name,venue:g.venue,who:g.teachers}:{what:v||'原班活動',venue:'',who:''};
+}
+const marksOf=(key,i)=>((dayAtt[key]&&i===dateI)?dayAtt[key]:(yearAtt[ymd(i)]||{}))||{};
+
+// ---------- header ----------
+function renderDate(){
+  const sel=$('#date');
+  if(!sel.options.length) sel.innerHTML=D.map((d,i)=>`<option value="${i}">第${i+1}次　${d.getMonth()+1}月${d.getDate()}日（五）${i===10?'　下學期開始':''}</option>`).join('');
+  sel.value=dateI; $('#prev').disabled=dateI===0; $('#next').disabled=dateI===N-1;
+  document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'));
+}
+// ---------- pages ----------
+function render(){
+  renderDate();
+  if(page==='find'&&$('#q')){ $('#foot').classList.add('hide'); return renderFindRes(); }
+  $('#foot').classList.toggle('hide',!(page==='roll'&&listKey&&mode==='day'));
+  if(page==='roll') return renderRoll();
+  if(page==='me') return renderMe();
+  if(page==='find') return renderFind();
+  if(page==='grp') return renderGrp();
+  renderCls();
+}
+function progress(L){
+  const m=dayAtt[L.key]||{}; const exp=L.members.filter(s=>status(L,s,dateI).exp);
+  return {n:exp.length,done:exp.filter(s=>m[s]).length};
+}
+function listPicker(){
+  const opt=L=>{const p=progress(L);return `<option value="${L.key}" ${L.key===listKey?'selected':''}>${esc(L.name)}${p.n?`（已點 ${p.done}/${p.n}）`:'（本次不設）'}</option>`};
+  return `<label class="pick"><span>選擇小組</span><select id="listSel">
+    <option value="" ${listKey?'':'selected'}>請選擇小組…</option>
+    <optgroup label="專組">${ROLL_G.map(opt).join('')}</optgroup>
+    <optgroup label="輪替組別（合班）">${ROLL_R.map(opt).join('')}</optgroup></select></label>`;
+}
+function renderRoll(){
+  if(!listKey){$('#main').innerHTML=listPicker()+(db?'':'<div class="warn">點名紀錄服務未連線，現只可查閱名單。</div>')+'<p class="hint">請先在上方選擇你負責的小組，便會顯示上課地點、老師及學生名單。</p><div class="more"><button class="btn" id="csvAll">匯出所有組別全年 CSV</button></div>';return}
+  const L=byKey[listKey], i=dateI, p=perOf(L,i), m=dayAtt[L.key]||{};
+  const rows=L.members.map(s=>({s,st:status(L,s,i)}));
+  const exp=rows.filter(r=>r.st.exp), away=rows.filter(r=>!r.st.exp);
+  const locked=!db||!canWrite;
+  let h=listPicker()+`<div class="panel"><h2>${esc(L.name)}</h2><dl class="info">
+    <dt>地點</dt><dd class="big">${esc(p.venue)}</dd><dt>老師</dt><dd>${esc(p.teachers)}</dd>
+    ${L.kind==='r'?`<dt>活動</dt><dd>${esc(p.act)}</dd>`:''}</dl></div>
+  <div class="seg" role="group"><button data-mode="day" aria-pressed="${mode==='day'}">本次點名</button><button data-mode="year" aria-pressed="${mode==='year'}">全年紀錄</button></div>`;
+  if(!db) h+=`<div class="warn">點名紀錄服務未連線，現只可查閱名單。</div>`;
+  else if(!canWrite) h+=`<div class="warn">你目前只有檢視權限，未能點名。請向負責人要求「可參與」權限。</div>`;
+  if(mode==='year'){ h+=yearTable(L); }
+  else{
+    if(!exp.length) h+=`<div class="empty">本次此名單沒有學生需要出席${L.kind==='g'?'（本組不設節數）':''}。</div>`;
+    else{
+      h+='<div class="list">'+exp.map(({s})=>{const v=m[s]||''; const rm=(L.remarks||{})[s];
+        return `<div class="st ${v}"><div class="who"><b>${esc(ST[s][0])}</b><small>${s}</small>${rm?`<em>${esc(rm)}</em>`:''}</div>
+        <div class="btns">${['P','A','E'].map(k=>`<button data-s="${s}" data-v="${k}" aria-pressed="${v===k}" ${locked?'disabled':''}>${MARK[k]}</button>`).join('')}</div></div>`}).join('')+'</div>';
+    }
+    if(away.length) h+=`<details class="away"><summary>本次不在此名單上課的學生（${away.length} 人）</summary>${away.map(({s,st})=>`<div class="st"><div class="who"><b>${esc(ST[s][0])}</b><small>${s}</small></div><span class="tag">${esc(st.why)}</span></div>`).join('')}</details>`;
+  }
+  h+=`<div class="more"><button class="btn" id="csv">匯出本組全年 CSV</button><button class="btn" id="csvAll">匯出所有組別全年 CSV</button><button class="btn" onclick="print()">列印點名紙</button></div>`;
+  $('#main').innerHTML=h;
+  // footer
+  const c={P:0,L:0,A:0,E:0}; exp.forEach(({s})=>{if(m[s])c[m[s]]++}); const un=exp.length-c.P-c.L-c.A-c.E;
+  $('#cnt').innerHTML=`<span>人數<b>${exp.length}</b></span><span class="c-P">出席<b>${c.P+c.L}</b></span><span class="c-A">缺席<b>${c.A}</b></span><span class="c-E">豁免<b>${c.E}</b></span><span>未點<b>${un}</b></span>`;
+  $('#allP').disabled=locked||!un;
+}
+function yearTable(L){
+  let h='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,i)=>`<th class="${i===dateI?'cur':''}">${md(i)}</th>`).join('')+'<th>出席率</th></tr></thead><tbody>';
+  L.members.forEach(s=>{let n=0,p=0;
+    h+=`<tr><td class="l">${esc(ST[s][0])} <small style="color:var(--mute)">${s}</small></td>`+D.map((d,i)=>{const st=status(L,s,i);
+      if(!st.exp) return `<td class="x" title="${esc(st.why)}">${SC[s][i]?esc(SC[s][i].slice(0,2)):'—'}</td>`;
+      const v=(yearAtt[ymd(i)]||{})[s]; if(v&&v!=='E')n++; if(v==='P'||v==='L')p++;
+      return `<td class="${v||''}">${v==='P'?'✓':v==='L'?'遲':v==='A'?'✗':v==='E'?'免':'·'}</td>`}).join('')+`<td>${n?Math.round(p/n*100)+'%':'—'}</td></tr>`});
+  return h+'</tbody></table></div><p class="legend">✓ 出席　✗ 缺席　免 豁免　· 未點　灰字＝當日往其他組別　— 不設節數。出席率＝出席次數 ÷（已點名節數 − 豁免），未點的節數不計算。</p>';
+}
+function renderFind(){
+  $('#main').innerHTML=`<input class="field" id="q" type="search" placeholder="輸入學生姓名或班別學號，例如 陳 或 3A05" autocomplete="off" autocorrect="off" spellcheck="false"><div id="findRes"></div>`;
+  $('#q').value=q; renderFindRes();
+}
+function renderFindRes(){
+  let h='';
+  if(q&&!stu){const qq=q.toUpperCase(); const qn=qq.replace(/[()（）\s]/g,'').replace(/^([1-6][A-D])(\d)$/,'$10$2'); const hits=Object.keys(ST).filter(s=>(qn&&s.includes(qn))||ST[s][0].includes(q)).slice(0,40);
+    h+=hits.length?`<div class="hits">${hits.map(s=>`<button class="chip" data-stu="${s}">${esc(fmt(s))}</button>`).join('')}</div>`:'<div class="empty">找不到學生</div>';}
+  else if(!q) h+='<p class="hint" style="margin-top:12px">可查看學生全年每次活動的組別、地點和老師。</p>';
+  if(stu){const rm=DATA.stuRemarks[stu];
+    h+=`<div class="panel" style="margin-top:12px"><h2 style="margin:0">${esc(fmt(stu))}</h2>${rotOf[stu]?`<dl class="info" style="margin-top:6px"><dt>合班組別</dt><dd>${esc(rotOf[stu].name)}</dd></dl>`:''}</div>${rm?`<div class="warn">${esc(rm)}</div>`:''}
+    <div class="list sched">${D.map((d,i)=>{const w=whereIs(stu,i);return `<div class="st${i===dateI?' cur':''}"><span class="d">${md(i)}</span><div class="who"><b>${esc(w.what)}</b><small>${esc(w.who)}</small></div><span class="tag">${esc(w.venue)}</span></div>`}).join('')}</div>`;}
+  $('#findRes').innerHTML=h;
+}
+function renderGrp(){
+  const L=byKey[grp], i=dateI;
+  let h=`<label class="pick"><span>選擇專組</span><select id="grpSel">${DATA.groups.map(g=>`<option value="${g.key}" ${g.key===grp?'selected':''}>${esc(g.name)}（${g.members.length}人）</option>`).join('')}</select></label>
+  <div class="panel"><h2>${esc(L.name)}</h2><dl class="info"><dt>地點</dt><dd class="big">${esc(L.venue)}</dd><dt>老師</dt><dd>${esc(L.teachers)}</dd><dt>人數</dt><dd>全年共 ${L.members.length} 人，本次應到 ${L.members.filter(s=>status(L,s,i).exp).length} 人</dd></dl></div>
+  <div class="seg" role="group"><button data-mode="day" aria-pressed="${mode==='day'}">本次名單</button><button data-mode="year" aria-pressed="${mode==='year'}">全年名單</button></div>`;
+  if(mode==='year'){
+    h+='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,j)=>`<th class="${j===i?'cur':''}">${md(j)}</th>`).join('')+'<th>節數</th><th class="l" style="position:static">備註</th></tr></thead><tbody>'+
+      L.members.map(s=>{let n=0;const cells=D.map((d,j)=>{const st=status(L,s,j);if(st.exp){n++;return '<td class="P">●</td>'}return `<td class="x" title="${esc(st.why)}">${SC[s][j]?esc(SC[s][j]):'—'}</td>`}).join('');
+        return `<tr><td class="l">${esc(ST[s][0])} <small style="color:var(--mute)">${s}</small></td>${cells}<td>${n}</td><td style="text-align:left;color:var(--mute);font-size:12.5px">${esc((L.remarks||{})[s]||'')}</td></tr>`}).join('')+
+      '</tbody></table></div><p class="legend">● 在本組上課　灰字＝當日往其他組別　— 本組不設節數。</p>';
+  }else{
+    const rows=L.members.map(s=>({s,st:status(L,s,i)}));
+    const a=rows.filter(r=>r.st.exp), b=rows.filter(r=>!r.st.exp);
+    h+=a.length?'<div class="list sched">'+a.map(({s})=>{const rm=(L.remarks||{})[s];return `<div class="st"><span class="d">${s}</span><div class="who"><b>${esc(ST[s][0])}</b>${rm?`<small>${esc(rm)}</small>`:''}</div></div>`}).join('')+'</div>'
+      :'<div class="empty">本次此組沒有學生上課（本組不設節數）。</div>';
+    if(b.length) h+=`<details class="away"><summary>本次不在本組上課的組員（${b.length} 人）</summary>${b.map(({s,st})=>`<div class="st"><div class="who"><b>${esc(ST[s][0])}</b><small>${s}</small></div><span class="tag">${esc(st.why)}</span></div>`).join('')}</details>`;
+  }
+  h+=`<div class="more"><button class="btn" onclick="print()">列印名單</button></div>`;
+  $('#main').innerHTML=h;
+}
+// ---------- 老師任教 ----------
+const TEACH={}; // name -> [[{L,i,p}]...] by date
+[...LISTS,...DATA.rotations.filter(NOROLL)].forEach(L=>D.forEach((d,i)=>{const p=perOf(L,i); (p.teachers||'').split(/[、,，]/).map(x=>x.replace(/（.*?）/g,'').replace(/([\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])/g,'$1').trim()).filter(Boolean).forEach(n=>{(TEACH[n]=TEACH[n]||[]).push({L,i,p,venue:(p.tv&&p.tv[n])||p.venue})})}));
+const TORDER=DATA.torder||[];
+const TNAMES=TORDER; const TOTHER=Object.keys(TEACH).filter(n=>!TORDER.includes(n));
+let me=store.get('mi-me'); if(!TORDER.includes(me)&&!TEACH[me]) me='';
+function renderMe(){
+  let h=`<label class="pick"><span>選擇老師</span><select id="meSel"><option value="" ${me?'':'selected'}>請選擇你的名字…</option><optgroup label="教師">${TNAMES.map(n=>`<option ${n===me?'selected':''}>${esc(n)}</option>`).join('')}</optgroup><optgroup label="其他導師／負責人">${TOTHER.map(n=>`<option ${n===me?'selected':''}>${esc(n)}</option>`).join('')}</optgroup></select></label>`;
+  if(!me){$('#main').innerHTML=h+'<p class="hint">選擇你的名字後，會顯示你本次和全年負責的小組、地點及人數。網頁會記住你的選擇。</p>';return}
+  const items=TEACH[me]||[];
+  const cnt=(L,i)=>L.members.filter(s=>status(L,s,i).exp).length;
+  const now=items.filter(x=>x.i===dateI);
+  h+=`<div class="sec">本次（${D[dateI].getMonth()+1}月${D[dateI].getDate()}日）負責的小組</div>`;
+  h+=now.length?'<div class="list">'+now.map(({L,i,p,venue})=>{const nr=NOROLL(L),n=cnt(L,i),pr=progress(L);return `<div class="st"><div class="who"><b>${esc(L.name)}</b><small>${esc(L.kind==='r'?p.act+'　':'')}${esc(venue)}</small>${nr?'':`<em>${n?`人數 ${n}　已點 ${pr.done}/${pr.n}`:'本次不設節數'}</em>`}</div>${(n&&!nr)?`<button class="btn pri" data-go="${L.key}">點名</button>`:''}</div>`}).join('')+'</div>'
+    :'<div class="empty">本次沒有負責的小組。</div>';
+  h+='<div class="sec">全年負責的小組</div><div class="tw"><table><thead><tr><th class="l">日期</th><th style="text-align:left">組別</th><th style="text-align:left">活動</th><th style="text-align:left">地點</th><th>人數</th></tr></thead><tbody>';
+  D.forEach((d,i)=>{const xs=items.filter(x=>x.i===i);
+    if(!xs.length){h+=`<tr><td class="l">${md(i)}</td><td colspan="4" class="x" style="text-align:left">—</td></tr>`;return}
+    xs.forEach(({L,p,venue},k)=>{const n=cnt(L,i);h+=`<tr${i===dateI?' style="background:var(--blue-l)"':''}><td class="l">${k?'':md(i)}</td><td style="text-align:left"><b>${esc(L.name)}</b></td><td style="text-align:left">${esc(L.kind==='r'?p.act:L.name)}</td><td style="text-align:left">${esc(venue)}</td><td>${NOROLL(L)?'—':(n||'不設')}</td></tr>`})});
+  h+='</tbody></table></div><p class="legend">藍色底為目前選擇的日期。按「點名」可直接進入該組點名。</p>';
+  $('#main').innerHTML=h;
+}
+function renderCls(){
+  const cs=Object.keys(DATA.classes);
+  let h=`<label class="pick"><span>選擇班別</span><select id="clsSel">${cs.map(c=>`<option value="${c}" ${c===cls?'selected':''}>${c} 班（${DATA.classes[c].length}人）</option>`).join('')}</select></label>
+  <div class="seg" role="group"><button data-mode="day" aria-pressed="${mode==='day'}">本節</button><button data-mode="year" aria-pressed="${mode==='year'}">全年</button></div>`;
+  const sids=DATA.classes[cls];
+  if(mode==='year'){
+    h+='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,j)=>`<th class="${j===dateI?'cur':''}">${md(j)}</th>`).join('')+'</tr></thead><tbody>'+
+      sids.map(s=>`<tr><td class="l">${s.slice(2)} ${esc(ST[s][0])}</td>`+D.map((d,j)=>{const v=SC[s][j],r=rotOf[s];return `<td class="${v?'':'x'}">${esc(v||(r?r.name:'原班'))}</td>`}).join('')+'</tr>').join('')+
+      '</tbody></table></div><p class="legend">灰字＝參加合班／輪替活動。</p>';
+  }else{
+    h+='<div class="list sched">'+sids.map(s=>{const w=whereIs(s,dateI);return `<div class="st"><span class="d">${s.slice(2)}</span><div class="who"><b>${esc(ST[s][0])}</b><small>${esc(w.what)}</small></div><span class="tag">${esc(w.venue)}</span></div>`}).join('')+'</div>';
+  }
+  $('#main').innerHTML=h;
+}
+
+// ---------- db（Firebase Firestore）----------
+function subDay(){
+  if(unDay){unDay();unDay=null} dayAtt={};
+  if(!db){render();return}
+  unDay=FB.onSnapshot(FB.query(FB.collection(FB.db,'att'),FB.where('date','==',ymd(dateI))),snap=>{
+      const a={}; snap.docs.forEach(d=>{const b=d.data(); if(b&&b.list) a[b.list]=b.marks||{}}); dayAtt=a; render();
+    },e=>{console.error(e);toast('點名紀錄暫時未能更新');});
+  render();
+}
+function subYear(){
+  if(unYear){unYear();unYear=null} yearAtt={};
+  if(!db||!listKey) return;
+  unYear=FB.onSnapshot(FB.query(FB.collection(FB.db,'att'),FB.where('list','==',listKey)),snap=>{
+      const a={}; snap.docs.forEach(d=>{const b=d.data(); if(b&&b.date) a[b.date]=b.marks||{}}); yearAtt=a; if(mode==='year')render();
+    },e=>console.error(e));
+}
+function write(L,i,marks){
+  const date=ymd(i), id=`${L.key}_${date}`;
+  const cur=Object.assign({},dayAtt[L.key]); Object.entries(marks).forEach(([k,v])=>{if(v)cur[k]=v;else delete cur[k]}); dayAtt[L.key]=cur; render();
+  const m={}; Object.entries(marks).forEach(([k,v])=>m[k]=v?v:FB.deleteField());
+  FB.setDoc(FB.doc(FB.db,'att',id),{list:L.key,date,marks:m,t:FB.serverTimestamp(),by:FB.email()},{merge:true})
+    .catch(e=>{console.error(e); if(e.code==='permission-denied'){canWrite=false;toast('你沒有點名權限');render()} else toast('儲存失敗，請再按一次')});
+}
+function csvText(rows){return '\ufeff'+rows.map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\r\n')}
+function listRows(L,getMarks,withList){
+  return L.members.map(s=>{let n=0,p=0,a=0,e=0;
+    const cells=D.map((d,i)=>{const st=status(L,s,i);if(!st.exp)return st.why;const v=(getMarks(i)||{})[s];
+      if(v==='E'){e++;return MARK.E} if(v)n++; if(v==='P'||v==='L')p++; if(v==='A')a++; return v?MARK[v]:''});
+    const base=[s,ST[s][0],...cells,p,a,e,n?Math.round(p/n*100)+'%':''];
+    return withList?[L.cat,L.name,...base]:base});
+}
+const TAIL=['出席次數','缺席次數','豁免次數','出席率'];
+async function saveFile(filename,data){
+  const url=URL.createObjectURL(new Blob([data],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+async function exportCSV(){
+  const L=byKey[listKey];
+  const rows=[['班別學號','姓名',...DATA.dates,...TAIL],...listRows(L,i=>yearAtt[ymd(i)],false)];
+  saveFile(`MI點名_${L.name}.csv`,csvText(rows));
+}
+async function exportAll(){
+  if(!db){toast('點名紀錄服務未連線');return}
+  toast('正在整理所有組別的紀錄…');
+  let all={};
+  try{const snap=await FB.getDocs(FB.collection(FB.db,'att'));
+    snap.docs.forEach(d=>{const b=d.data();if(b&&b.list&&b.date)(all[b.list]=all[b.list]||{})[b.date]=b.marks||{}});
+  }catch(e){toast('讀取紀錄失敗，請再試');return}
+  const rows=[['類別','名單','班別學號','姓名',...DATA.dates,...TAIL]];
+  LISTS.forEach(L=>{const m=all[L.key]||{};rows.push(...listRows(L,i=>m[ymd(i)],true))});
+  const t=new Date(); const stamp=`${t.getFullYear()}${String(t.getMonth()+1).padStart(2,'0')}${String(t.getDate()).padStart(2,'0')}`;
+  saveFile(`MI點名_所有組別全年_${stamp}.csv`,csvText(rows));
+}
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
+
+// ---------- events ----------
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.page){page=b.dataset.page;mode='day';$('#main').innerHTML='';render();scrollTo(0,0);return}
+  if(b.id==='prev'&&dateI>0){dateI--;subDay();return}
+  if(b.id==='next'&&dateI<N-1){dateI++;subDay();return}
+  if(b.dataset.key){listKey=b.dataset.key;mode='day';store.set('mi-last',listKey);subYear();render();scrollTo(0,0);return}
+  if(b.dataset.mode){mode=b.dataset.mode;render();return}
+  if(b.dataset.stu){stu=b.dataset.stu;renderFindRes();return}
+  if(b.dataset.go){page='roll';listKey=b.dataset.go;mode='day';store.set('mi-last',listKey);subYear();render();scrollTo(0,0);return}
+  if(b.id==='csv'){exportCSV();return}
+  if(b.id==='csvAll'){exportAll();return}
+  if(b.id==='allP'){const L=byKey[listKey],m=dayAtt[L.key]||{},x={};L.members.forEach(s=>{if(status(L,s,dateI).exp&&!m[s])x[s]='P'});if(Object.keys(x).length)write(L,dateI,x);return}
+  if(b.dataset.s&&b.dataset.v){const L=byKey[listKey],m=dayAtt[L.key]||{};write(L,dateI,{[b.dataset.s]:m[b.dataset.s]===b.dataset.v?null:b.dataset.v});return}
+});
+$('#date').addEventListener('change',e=>{dateI=+e.target.value;subDay()});
+let composing=false;
+document.addEventListener('compositionstart',e=>{if(e.target.id==='q')composing=true});
+document.addEventListener('compositionend',e=>{if(e.target.id==='q'){composing=false;q=e.target.value.trim();stu=null;renderFindRes()}});
+document.addEventListener('input',e=>{if(e.target.id==='q'&&!composing&&!e.isComposing){q=e.target.value.trim();stu=null;renderFindRes()}});
+document.addEventListener('change',e=>{
+  if(e.target.id==='listSel'){listKey=e.target.value||null;mode='day';if(listKey)store.set('mi-last',listKey);subYear();render();return}
+  if(e.target.id==='meSel'){me=e.target.value;store.set('mi-me',me);render();return}
+  if(e.target.id==='grpSel'){grp=e.target.value;store.set('mi-grp',grp);render();return}
+  if(e.target.id==='clsSel'){cls=e.target.value;store.set('mi-cls',cls);render();return}
+});
+
+{const l=store.get('mi-last'); if(l&&LISTS.some(x=>x.key===l)) listKey=l;}
+render();
+db=FB; subDay(); subYear();
+}
+</script>
+</body>
+</html>

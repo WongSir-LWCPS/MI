@@ -176,6 +176,7 @@ td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td
     <button data-page="grp" aria-current="false">專組名單</button>
     <button data-page="cls" aria-current="false">班別名單</button>
     <button data-page="me" aria-current="false">小組老師</button>
+    <button data-page="adm" aria-current="false" class="hide" id="navAdm">管理</button>
   </nav>
 </div></header>
 <main id="main"></main>
@@ -196,13 +197,15 @@ td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, setDoc, getDocs, collection, query, where, onSnapshot, deleteField, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig, ALLOWED_DOMAIN, AUTH_PROVIDER } from "./firebase-config.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, setDoc, getDocs, collection, query, where, onSnapshot, deleteField, serverTimestamp, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import * as CFG from "./firebase-config.js";
+const { firebaseConfig, ALLOWED_DOMAIN, AUTH_PROVIDER } = CFG;
+const ADMINS=(CFG.ADMINS||[]).map(x=>x.toLowerCase());
 
 const fbApp=initializeApp(firebaseConfig);
 const auth=getAuth(fbApp);
 let fdb; try{ fdb=initializeFirestore(fbApp,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})}); }catch(e){ fdb=initializeFirestore(fbApp,{}); }
-const FB={db:fdb,doc,setDoc,getDocs,collection,query,where,onSnapshot,deleteField,serverTimestamp,email:()=>auth.currentUser?.email||''};
+const FB={db:fdb,doc,setDoc,getDocs,collection,query,where,onSnapshot,deleteField,serverTimestamp,addDoc,deleteDoc,email:()=>auth.currentUser?.email||'',isAdmin:()=>ADMINS.includes((auth.currentUser?.email||'').toLowerCase())};
 const gate=document.getElementById('gate'), gateMsg=document.getElementById('gateMsg');
 function provider(){ if(AUTH_PROVIDER==='microsoft'){const p=new OAuthProvider('microsoft.com');p.setCustomParameters({prompt:'select_account'});return p}
   const p=new GoogleAuthProvider(); p.setCustomParameters(ALLOWED_DOMAIN?{hd:ALLOWED_DOMAIN,prompt:'select_account'}:{prompt:'select_account'}); return p }
@@ -247,7 +250,7 @@ const ROLL_R=DATA.rotations.filter(r=>!CJ.includes(r)&&!NOROLL(r));
 const LISTS=[...ROLL_G,...ROLL_S,...ROLL_R];
 const byKey={}; [...DATA.groups,...DATA.rotations].forEach(l=>byKey[l.key]=l);
 const byLabel={}; DATA.groups.forEach(g=>byLabel[g.label]=g);
-const rotOf={}; DATA.rotations.forEach(r=>r.members.forEach(s=>{if(!rotOf[s])rotOf[s]=r}));
+const rotOf={}; function buildRotOf(){Object.keys(rotOf).forEach(k=>delete rotOf[k]); DATA.rotations.forEach(r=>r.members.forEach(s=>{if(!rotOf[s])rotOf[s]=r}));} buildRotOf();
 const MARK={P:'出席',A:'缺席',E:'豁免',L:'遲到'}; // L：舊紀錄，只作顯示
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ymd=i=>DATA.dates[i].replace(/-/g,'');
@@ -265,6 +268,8 @@ function isToday(i){const t=new Date();t.setHours(0,0,0,0);return +D[i]===+t}
 
 function status(L,s,i){
   const v=SC[s][i];
+  if(L.removed&&L.removed[s]!==undefined&&i>=L.removed[s]) return {exp:false,why:`已於 ${md(L.removed[s])} 起退出本組`};
+  if(L.added&&L.added[s]!==undefined&&i<L.added[s]&&v!==(L.kind==='g'?L.label:L.expect)) return {exp:false,why:`由 ${md(L.added[s])} 起加入本組`};
   if(L.kind==='g'){ if(v===L.label) return {exp:true}; return {exp:false,why:v?`往 ${v}`:'本組當日不設節數'} }
   if(v===L.expect) return {exp:true};
   return {exp:false,why:`往 ${v}`};
@@ -291,9 +296,98 @@ function render(){
   $('#foot').classList.toggle('hide',!(page==='roll'&&listKey&&mode==='day'));
   if(page==='roll') return renderRoll();
   if(page==='me') return renderMe();
+  if(page==='adm') return renderAdm();
   if(page==='find') return renderFind();
   if(page==='grp') return renderGrp();
   renderCls();
+}
+
+// ---------- 中途修改名單（管理員） ----------
+const SC0={}; Object.keys(SC).forEach(s=>SC0[s]=SC[s].slice());
+const ALLL=[...DATA.groups,...DATA.rotations]; const MEM0=new Map(ALLL.map(l=>[l,l.members.slice()]));
+const CLASSROT={}; DATA.rotations.filter(r=>!CJ.includes(r)).forEach(r=>MEM0.get(r).forEach(s=>{const c=ST[s][1]; if(!CLASSROT[c])CLASSROT[c]=r}));
+const CJG=DATA.groups.find(g=>g.label==='成長機地');
+const labOf=L=>L.kind==='g'?L.label:L.expect;
+function sessOf(L){ // 本組有上課的日子（按原本名單）
+  if(L.kind==='r') return D.map((d,i)=>i);
+  const lab=L.label, out=[]; D.forEach((d,i)=>{ if(MEM0.get(L).some(s=>SC0[s][i]===lab)) out.push(i) }); return out.length?out:D.map((d,i)=>i);
+}
+let CHANGES=[];
+function applyChanges(){
+  Object.keys(SC0).forEach(s=>SC[s]=SC0[s].slice());
+  ALLL.forEach(l=>{l.members=MEM0.get(l).slice(); l.added={}; l.removed={}});
+  CHANGES.slice().sort((a,b)=>(a.ts||0)-(b.ts||0)).forEach(c=>{
+    const L=byKey[c.list], k=DATA.dates.indexOf(c.from); if(!L||!SC[c.sid]||k<0) return;
+    const lab=labOf(L);
+    if(c.action==='add'){
+      sessOf(L).forEach(i=>{ if(i>=k) SC[c.sid][i]=lab });
+      [L,...(CJ.includes(L)?[CJG]:[])].forEach(x=>{ if(!x.members.includes(c.sid)) x.members.push(c.sid); delete x.removed[c.sid]; x.added[c.sid]=k; });
+    }else{
+      for(let i=k;i<N;i++) if(SC[c.sid][i]===lab) SC[c.sid][i]='';
+      [L,...(CJ.includes(L)?[CJG]:[])].forEach(x=>{ x.removed[c.sid]=k; });
+    }
+  });
+  // 有空檔的學生歸入所屬大班
+  Object.keys(SC).forEach(s=>{ if(SC[s].some(v=>!v)){ const r=CLASSROT[ST[s][1]]; if(r&&!r.members.includes(s)) r.members.push(s) } });
+  DATA.rotations.forEach(r=>{ if(!CJ.includes(r)) r.members.sort() });
+  buildRotOf();
+}
+function subChanges(){
+  FB.onSnapshot(FB.collection(FB.db,'rosterChanges'),snap=>{
+    CHANGES=snap.docs.map(d=>Object.assign({id:d.id},d.data())); applyChanges(); render();
+  },e=>{console.error(e)});
+}
+let admKey=null, admQ='', admComposing=false;
+const ADM_LISTS=()=>[...ROLL_G,...ROLL_S];
+function admOptions(){const o=L=>`<option value="${L.key}" ${L.key===admKey?'selected':''}>${esc(L.name)}</option>`;
+  return `<optgroup label="專組">${ROLL_G.map(o).join('')}</optgroup><optgroup label="支援小組">${ROLL_S.map(o).join('')}</optgroup>`}
+function renderAdm(){
+  if(!FB.isAdmin()){$('#main').innerHTML='<div class="empty">只有管理員可使用此頁。</div>';return}
+  if(!admKey) admKey=ADM_LISTS()[0].key;
+  if($('#admTop')&&$('#admSel').value===admKey){ renderAdmBody(); return }
+  $('#main').innerHTML=`<div id="admTop"><label class="pick"><span>選擇小組</span><select id="admSel">${admOptions()}</select></label>
+  <div class="panel"><h2 style="margin:0 0 8px">新增學生</h2>
+    <input class="field" id="admQ" type="search" placeholder="輸入學生姓名或班別學號" autocomplete="off" spellcheck="false">
+    <div id="admRes"></div>
+    <p class="hint" style="margin:8px 0 0">生效日期：以頂部選擇的活動日期為準（目前為 <b id="admFrom"></b>），該日及之後的節數生效。</p>
+  </div></div><div id="admBody"></div>`;
+  $('#admQ').value=admQ; renderAdmRes(); renderAdmBody();
+}
+function renderAdmRes(){
+  const L=byKey[admKey]; let h='';
+  if(admQ){const qq=admQ.toUpperCase(),qn=qq.replace(/[()（）\s]/g,'').replace(/^([1-6][A-D])(\d)$/,'$10$2');
+    const hits=Object.keys(ST).filter(s=>(qn&&s.includes(qn))||ST[s][0].includes(admQ)).slice(0,20);
+    h=hits.length?`<div class="hits">${hits.map(s=>`<button class="chip" data-addstu="${s}">${esc(fmt(s))}</button>`).join('')}</div>`:'<div class="empty">找不到學生</div>';}
+  $('#admRes').innerHTML=h;
+}
+function renderAdmBody(){
+  const L=byKey[admKey], i=dateI; if($('#admFrom')) $('#admFrom').textContent=`${md(i)}（第${i+1}次）`;
+  const cur=L.members.filter(s=>!(L.removed[s]!==undefined&&L.removed[s]<=i));
+  const gone=L.members.filter(s=>L.removed[s]!==undefined&&L.removed[s]<=i);
+  let h=`<div class="sec">目前組員（${md(i)}，共 ${cur.length} 人）</div><div class="list">`+cur.map(s=>{
+      const tag=L.added[s]!==undefined?`<small>由 ${md(L.added[s])} 起加入</small>`:(L.removed[s]!==undefined?`<small>將於 ${md(L.removed[s])} 起退出</small>`:'');
+      return `<div class="st"><div class="who"><b>${esc(fmt(s))}</b>${tag}</div><button class="btn" data-rmstu="${s}">刪除</button></div>`}).join('')+'</div>';
+  if(gone.length) h+=`<div class="sec">已退出</div><div class="list">`+gone.map(s=>`<div class="st"><div class="who"><b>${esc(fmt(s))}</b><small>由 ${md(L.removed[s])} 起退出</small></div></div>`).join('')+'</div>';
+  const log=CHANGES.filter(c=>c.list===admKey).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  h+=`<div class="sec">修改紀錄</div>`+(log.length?'<div class="list">'+log.map(c=>{const k=DATA.dates.indexOf(c.from);
+      return `<div class="st"><div class="who"><b>${c.action==='add'?'新增':'刪除'}　${ST[c.sid]?esc(fmt(c.sid)):esc(c.sid)}</b><small>由 ${k>=0?md(k):c.from} 起生效　${esc(c.by||'')}</small></div><button class="btn" data-undo="${c.id}">撤銷</button></div>`}).join('')+'</div>'
+    :'<div class="empty" style="padding:14px">暫未有修改。</div>');
+  $('#admBody').innerHTML=h;
+}
+async function addChange(action,sid){
+  const L=byKey[admKey], i=dateI;
+  if(action==='add'){
+    if(L.members.includes(sid)&&!(L.removed[sid]!==undefined)){toast('該生已在本組');return}
+    const clash=[...new Set(sessOf(L).filter(j=>j>=i).map(j=>SC[sid][j]).filter(v=>v&&v!==labOf(L)))];
+    if(!confirm(`由 ${md(i)} 起把 ${fmt(sid)} 加入「${L.name}」？${clash.length?`\n\n注意：該生原本在這些日子參加「${clash.join('、')}」，加入後會改為上本組。`:''}`)) return;
+  }else if(!confirm(`由 ${md(i)} 起把 ${fmt(sid)} 從「${L.name}」刪除？\n之前的點名紀錄會保留。`)) return;
+  try{ await FB.addDoc(FB.collection(FB.db,'rosterChanges'),{list:L.key,sid,action,from:DATA.dates[i],note:'',by:FB.email(),t:FB.serverTimestamp(),ts:Date.now()});
+       toast(action==='add'?'已新增':'已刪除'); admQ=''; if($('#admQ')){$('#admQ').value='';renderAdmRes()} }
+  catch(e){console.error(e);toast(e.code==='permission-denied'?'你沒有管理員權限':'儲存失敗，請再試')}
+}
+async function undoChange(id){
+  if(!confirm('撤銷這項修改？')) return;
+  try{ await FB.deleteDoc(FB.doc(FB.db,'rosterChanges',id)); toast('已撤銷') }catch(e){console.error(e);toast(e.code==='permission-denied'?'你沒有管理員權限':'撤銷失敗')}
 }
 function progress(L){
   const m=dayAtt[L.key]||{}; const exp=L.members.filter(s=>status(L,s,dateI).exp);
@@ -481,6 +575,9 @@ document.addEventListener('click',e=>{
   if(b.dataset.key){listKey=b.dataset.key;mode='day';store.set('mi-last',listKey);subYear();render();scrollTo(0,0);return}
   if(b.dataset.mode){mode=b.dataset.mode;render();return}
   if(b.dataset.stu){stu=b.dataset.stu;renderFindRes();return}
+  if(b.dataset.addstu){addChange('add',b.dataset.addstu);return}
+  if(b.dataset.rmstu){addChange('remove',b.dataset.rmstu);return}
+  if(b.dataset.undo){undoChange(b.dataset.undo);return}
   if(b.dataset.go){page='roll';listKey=b.dataset.go;mode='day';store.set('mi-last',listKey);subYear();render();scrollTo(0,0);return}
   if(b.id==='csv'){exportCSV();return}
   if(b.id==='csvAll'){exportAll();return}
@@ -490,18 +587,23 @@ document.addEventListener('click',e=>{
 $('#date').addEventListener('change',e=>{dateI=+e.target.value;subDay()});
 let composing=false;
 document.addEventListener('compositionstart',e=>{if(e.target.id==='q')composing=true});
+document.addEventListener('compositionstart',e=>{if(e.target.id==='admQ')admComposing=true});
+document.addEventListener('compositionend',e=>{if(e.target.id==='admQ'){admComposing=false;admQ=e.target.value.trim();renderAdmRes()}});
+document.addEventListener('input',e=>{if(e.target.id==='admQ'&&!admComposing&&!e.isComposing){admQ=e.target.value.trim();renderAdmRes()}});
 document.addEventListener('compositionend',e=>{if(e.target.id==='q'){composing=false;q=e.target.value.trim();stu=null;renderFindRes()}});
 document.addEventListener('input',e=>{if(e.target.id==='q'&&!composing&&!e.isComposing){q=e.target.value.trim();stu=null;renderFindRes()}});
 document.addEventListener('change',e=>{
   if(e.target.id==='listSel'){listKey=e.target.value||null;mode='day';if(listKey)store.set('mi-last',listKey);subYear();render();return}
+  if(e.target.id==='admSel'){admKey=e.target.value;admQ='';$('#main').innerHTML='';render();return}
   if(e.target.id==='meSel'){me=e.target.value;store.set('mi-me',me);render();return}
   if(e.target.id==='grpSel'){grp=e.target.value;store.set('mi-grp',grp);render();return}
   if(e.target.id==='clsSel'){cls=e.target.value;store.set('mi-cls',cls);render();return}
 });
 
 {const l=store.get('mi-last'); if(l&&LISTS.some(x=>x.key===l)) listKey=l;}
+if(FB.isAdmin()) $('#navAdm').classList.remove('hide');
 render();
-db=FB; subDay(); subYear();
+db=FB; subDay(); subYear(); subChanges();
 }
 </script>
 </body>

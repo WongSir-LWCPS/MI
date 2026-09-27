@@ -61,6 +61,17 @@ main{max-width:1080px;margin:0 auto;padding:16px 16px 120px}
 .out{border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;border-radius:8px;padding:2px 10px;font-size:13px;cursor:pointer;margin-left:6px}
 #who{font-size:12px;color:#b9cdf0}
 @media (max-width:480px){#who{display:none}}
+@media (max-width:480px){
+  main{padding:12px 12px 110px}
+  .top-in{padding:10px 12px 0}
+  .brand h1{font-size:17px}
+  .panel{padding:12px 14px}.panel h2{font-size:21px}
+  .st{padding:9px 10px;gap:8px}
+  .st .who b{font-size:16px;line-height:1.35}
+  .btns{gap:4px}.btns button{width:46px;height:44px;font-size:14px}
+  .pick select{font-size:16px;height:48px}
+  .tag{max-width:42%}
+}
 /* pickers */
 .pick{display:block;margin:0 0 14px}
 .pick span{display:block;font-size:14px;color:var(--mute);margin:0 2px 4px}
@@ -106,10 +117,11 @@ details.away .st .who b{font-size:16px;color:var(--mute)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 /* bottom bar */
 .foot{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 16px rgba(14,63,143,.08)}
-.foot-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.cnt{display:flex;gap:12px;flex:1;flex-wrap:wrap;font-size:14px;color:var(--mute)}
-@media (max-width:480px){.cnt{gap:8px;font-size:12.5px}.cnt b{font-size:17px}.foot .btn.pri{padding:9px 12px;font-size:14px}}
-.cnt b{font-size:20px;color:var(--ink);margin-left:3px}
+.foot-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:nowrap}
+.cnt{display:flex;gap:6px;flex:1;min-width:0;flex-wrap:nowrap;color:var(--mute)}
+.cnt span{display:flex;flex-direction:column;align-items:center;min-width:44px;font-size:12.5px;line-height:1.25;white-space:nowrap}
+@media (max-width:480px){.cnt{gap:2px}.cnt span{min-width:0;flex:1;font-size:11.5px}.cnt b{font-size:18px}.foot{padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px))}.foot .btn.pri{padding:10px 10px;font-size:14px;white-space:nowrap;flex:0 0 auto}.foot .long{display:none}}
+.cnt b{order:-1;font-size:21px;color:var(--ink);font-weight:700}
 .cnt .c-P b{color:var(--ok)} .cnt .c-E b{color:var(--ex)} .cnt .c-A b{color:var(--bad)}
 /* tables */
 .tw{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:14px}
@@ -163,13 +175,13 @@ td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td
     <button data-page="find" aria-current="false">搜尋學生</button>
     <button data-page="grp" aria-current="false">專組名單</button>
     <button data-page="cls" aria-current="false">班別名單</button>
-    <button data-page="me" aria-current="false">我的小組</button>
+    <button data-page="me" aria-current="false">小組老師</button>
   </nav>
 </div></header>
 <main id="main"></main>
 <div class="foot hide" id="foot"><div class="foot-in">
   <div class="cnt" id="cnt"></div>
-  <button class="btn pri" id="allP">未點者全部出席</button>
+  <button class="btn pri" id="allP"><span class="long">未點者</span>全部出席</button>
 </div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -308,10 +320,10 @@ function renderRoll(){
     if(!exp.length) h+=`<div class="empty">本次此名單沒有學生需要出席${L.kind==='g'?'（本組不設節數）':''}。</div>`;
     else{
       h+='<div class="list">'+exp.map(({s})=>{const v=m[s]||''; const rm=(L.remarks||{})[s];
-        return `<div class="st ${v}"><div class="who"><b>${esc(ST[s][0])}</b><small>${s}</small>${rm?`<em>${esc(rm)}</em>`:''}</div>
+        return `<div class="st ${v}"><div class="who"><b>${esc(fmt(s))}</b></div>
         <div class="btns">${['P','A','E'].map(k=>`<button data-s="${s}" data-v="${k}" aria-pressed="${v===k}" ${locked?'disabled':''}>${MARK[k]}</button>`).join('')}</div></div>`}).join('')+'</div>';
     }
-    if(away.length) h+=`<details class="away"><summary>本次不在此名單上課的學生（${away.length} 人）</summary>${away.map(({s,st})=>`<div class="st"><div class="who"><b>${esc(ST[s][0])}</b><small>${s}</small></div><span class="tag">${esc(st.why)}</span></div>`).join('')}</details>`;
+    if(away.length) h+=`<details class="away"><summary>本次不在此名單上課的學生（${away.length} 人）</summary>${away.map(({s,st})=>`<div class="st"><div class="who"><b>${esc(fmt(s))}</b></div><span class="tag">${esc(st.why)}</span></div>`).join('')}</details>`;
   }
   h+=`<div class="more"><button class="btn" id="csv">匯出本組全年 CSV</button><button class="btn" id="csvAll">匯出所有組別全年 CSV</button><button class="btn" onclick="print()">列印點名紙</button></div>`;
   $('#main').innerHTML=h;
@@ -323,7 +335,7 @@ function renderRoll(){
 function yearTable(L){
   let h='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,i)=>`<th class="${i===dateI?'cur':''}">${md(i)}</th>`).join('')+'<th>出席率</th></tr></thead><tbody>';
   L.members.forEach(s=>{let n=0,p=0;
-    h+=`<tr><td class="l">${esc(ST[s][0])} <small style="color:var(--mute)">${s}</small></td>`+D.map((d,i)=>{const st=status(L,s,i);
+    h+=`<tr><td class="l">${esc(fmt(s))}</td>`+D.map((d,i)=>{const st=status(L,s,i);
       if(!st.exp) return `<td class="x" title="${esc(st.why)}">${SC[s][i]?esc(SC[s][i].slice(0,2)):'—'}</td>`;
       const v=(yearAtt[ymd(i)]||{})[s]; if(v&&v!=='E')n++; if(v==='P'||v==='L')p++;
       return `<td class="${v||''}">${v==='P'?'✓':v==='L'?'遲':v==='A'?'✗':v==='E'?'免':'·'}</td>`}).join('')+`<td>${n?Math.round(p/n*100)+'%':'—'}</td></tr>`});
@@ -351,14 +363,14 @@ function renderGrp(){
   if(mode==='year'){
     h+='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,j)=>`<th class="${j===i?'cur':''}">${md(j)}</th>`).join('')+'<th>節數</th><th class="l" style="position:static">備註</th></tr></thead><tbody>'+
       L.members.map(s=>{let n=0;const cells=D.map((d,j)=>{const st=status(L,s,j);if(st.exp){n++;return '<td class="P">●</td>'}return `<td class="x" title="${esc(st.why)}">${SC[s][j]?esc(SC[s][j]):'—'}</td>`}).join('');
-        return `<tr><td class="l">${esc(ST[s][0])} <small style="color:var(--mute)">${s}</small></td>${cells}<td>${n}</td><td style="text-align:left;color:var(--mute);font-size:12.5px">${esc((L.remarks||{})[s]||'')}</td></tr>`}).join('')+
+        return `<tr><td class="l">${esc(fmt(s))}</td>${cells}<td>${n}</td><td style="text-align:left;color:var(--mute);font-size:12.5px">${esc((L.remarks||{})[s]||'')}</td></tr>`}).join('')+
       '</tbody></table></div><p class="legend">● 在本組上課　灰字＝當日往其他組別　— 本組不設節數。</p>';
   }else{
     const rows=L.members.map(s=>({s,st:status(L,s,i)}));
     const a=rows.filter(r=>r.st.exp), b=rows.filter(r=>!r.st.exp);
-    h+=a.length?'<div class="list sched">'+a.map(({s})=>{const rm=(L.remarks||{})[s];return `<div class="st"><span class="d">${s}</span><div class="who"><b>${esc(ST[s][0])}</b>${rm?`<small>${esc(rm)}</small>`:''}</div></div>`}).join('')+'</div>'
+    h+=a.length?'<div class="list sched">'+a.map(({s})=>{const rm=(L.remarks||{})[s];return `<div class="st"><div class="who"><b>${esc(fmt(s))}</b>${rm?`<small>${esc(rm)}</small>`:''}</div></div>`}).join('')+'</div>'
       :'<div class="empty">本次此組沒有學生上課（本組不設節數）。</div>';
-    if(b.length) h+=`<details class="away"><summary>本次不在本組上課的組員（${b.length} 人）</summary>${b.map(({s,st})=>`<div class="st"><div class="who"><b>${esc(ST[s][0])}</b><small>${s}</small></div><span class="tag">${esc(st.why)}</span></div>`).join('')}</details>`;
+    if(b.length) h+=`<details class="away"><summary>本次不在本組上課的組員（${b.length} 人）</summary>${b.map(({s,st})=>`<div class="st"><div class="who"><b>${esc(fmt(s))}</b></div><span class="tag">${esc(st.why)}</span></div>`).join('')}</details>`;
   }
   h+=`<div class="more"><button class="btn" onclick="print()">列印名單</button></div>`;
   $('#main').innerHTML=h;
@@ -392,10 +404,10 @@ function renderCls(){
   const sids=DATA.classes[cls];
   if(mode==='year'){
     h+='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,j)=>`<th class="${j===dateI?'cur':''}">${md(j)}</th>`).join('')+'</tr></thead><tbody>'+
-      sids.map(s=>`<tr><td class="l">${s.slice(2)} ${esc(ST[s][0])}</td>`+D.map((d,j)=>{const v=SC[s][j],r=rotOf[s];return `<td class="${v?'':'x'}">${esc(v||(r?r.name:'原班'))}</td>`}).join('')+'</tr>').join('')+
+      sids.map(s=>`<tr><td class="l">${esc(fmt(s))}</td>`+D.map((d,j)=>{const v=SC[s][j],r=rotOf[s];return `<td class="${v?'':'x'}">${esc(v||(r?r.name:'原班'))}</td>`}).join('')+'</tr>').join('')+
       '</tbody></table></div><p class="legend">灰字＝參加合班／輪替活動。</p>';
   }else{
-    h+='<div class="list sched">'+sids.map(s=>{const w=whereIs(s,dateI);return `<div class="st"><span class="d">${s.slice(2)}</span><div class="who"><b>${esc(ST[s][0])}</b><small>${esc(w.what)}</small></div><span class="tag">${esc(w.venue)}</span></div>`}).join('')+'</div>';
+    h+='<div class="list sched">'+sids.map(s=>{const w=whereIs(s,dateI);return `<div class="st"><div class="who"><b>${esc(fmt(s))}</b><small>${esc(w.what)}</small></div><span class="tag">${esc(w.venue)}</span></div>`}).join('')+'</div>';
   }
   $('#main').innerHTML=h;
 }
@@ -428,7 +440,7 @@ function listRows(L,getMarks,withList){
   return L.members.map(s=>{let n=0,p=0,a=0,e=0;
     const cells=D.map((d,i)=>{const st=status(L,s,i);if(!st.exp)return st.why;const v=(getMarks(i)||{})[s];
       if(v==='E'){e++;return MARK.E} if(v)n++; if(v==='P'||v==='L')p++; if(v==='A')a++; return v?MARK[v]:''});
-    const base=[s,ST[s][0],...cells,p,a,e,n?Math.round(p/n*100)+'%':''];
+    const base=[fmt(s),...cells,p,a,e,n?Math.round(p/n*100)+'%':''];
     return withList?[L.cat,L.name,...base]:base});
 }
 const TAIL=['出席次數','缺席次數','豁免次數','出席率'];
@@ -439,7 +451,7 @@ async function saveFile(filename,data){
 }
 async function exportCSV(){
   const L=byKey[listKey];
-  const rows=[['班別學號','姓名',...DATA.dates,...TAIL],...listRows(L,i=>yearAtt[ymd(i)],false)];
+  const rows=[['學生',...DATA.dates,...TAIL],...listRows(L,i=>yearAtt[ymd(i)],false)];
   saveFile(`MI點名_${L.name}.csv`,csvText(rows));
 }
 async function exportAll(){
@@ -449,7 +461,7 @@ async function exportAll(){
   try{const snap=await FB.getDocs(FB.collection(FB.db,'att'));
     snap.docs.forEach(d=>{const b=d.data();if(b&&b.list&&b.date)(all[b.list]=all[b.list]||{})[b.date]=b.marks||{}});
   }catch(e){toast('讀取紀錄失敗，請再試');return}
-  const rows=[['類別','名單','班別學號','姓名',...DATA.dates,...TAIL]];
+  const rows=[['類別','名單','學生',...DATA.dates,...TAIL]];
   LISTS.forEach(L=>{const m=all[L.key]||{};rows.push(...listRows(L,i=>m[ymd(i)],true))});
   const t=new Date(); const stamp=`${t.getFullYear()}${String(t.getMonth()+1).padStart(2,'0')}${String(t.getDate()).padStart(2,'0')}`;
   saveFile(`MI點名_所有組別全年_${stamp}.csv`,csvText(rows));

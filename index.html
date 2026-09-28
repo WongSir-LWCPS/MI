@@ -59,6 +59,7 @@ main{max-width:1080px;margin:0 auto;padding:16px 16px 120px}
 #diag{display:none;background:#fff6df;color:#6b4c00;border-radius:10px;padding:12px 14px;margin-top:16px;font-size:14px;line-height:1.7;text-align:left}
 .gate-msg{margin:16px 0 0!important;color:var(--bad)!important;font-size:14px;min-height:1em}
 .out{border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;border-radius:8px;padding:2px 10px;font-size:13px;cursor:pointer;margin-left:6px}
+.out[aria-current="page"]{background:#fff;color:var(--blue-d);font-weight:700}
 #who{font-size:12px;color:#b9cdf0}
 @media (max-width:480px){#who{display:none}}
 @media (max-width:480px){
@@ -168,7 +169,7 @@ td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td
   <div id="diag" role="alert"></div>
 </div></div>
 <header class="top"><div class="top-in">
-  <div class="brand"><h1>樂Kids MI 點名系統</h1><span><span id="who"></span> <button class="out" id="logout">登出</button></span></div>
+  <div class="brand"><h1>樂Kids MI 點名系統</h1><span><span id="who"></span> <button class="out hide" data-page="adm" id="navAdm" aria-current="false">設定</button><button class="out" id="logout">登出</button></span></div>
   <div class="datebar">
     <button class="arrow" id="prev" aria-label="上一次">‹</button>
     <select id="date" aria-label="活動日期"></select>
@@ -180,7 +181,6 @@ td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td
     <button data-page="grp" aria-current="false">專組名單</button>
     <button data-page="cls" aria-current="false">班別名單</button>
     <button data-page="me" aria-current="false">小組老師</button>
-    <button data-page="adm" aria-current="false" class="hide" id="navAdm">管理</button>
   </nav>
 </div></header>
 <main id="main"></main>
@@ -293,7 +293,7 @@ function renderDate(){
   const sel=$('#date');
   if(!sel.options.length) sel.innerHTML=D.map((d,i)=>`<option value="${i}">第${i+1}次　${d.getMonth()+1}月${d.getDate()}日（五）${i===10?'　下學期開始':''}</option>`).join('');
   sel.value=dateI; $('#prev').disabled=dateI===0; $('#next').disabled=dateI===N-1;
-  document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'));
+  document.querySelectorAll('.nav button,#navAdm').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'));
 }
 // ---------- pages ----------
 function render(){
@@ -365,7 +365,7 @@ const ADM_LISTS=()=>[...ROLL_G,...ROLL_S];
 function admOptions(){const o=L=>`<option value="${L.key}" ${L.key===admKey?'selected':''}>${esc(L.name)}</option>`;
   return `<optgroup label="專組">${ROLL_G.map(o).join('')}</optgroup><optgroup label="支援小組">${ROLL_S.map(o).join('')}</optgroup>`}
 function renderAdm(){
-  if(!FB.isAdmin()){$('#main').innerHTML='<div class="empty">只有管理員可使用此頁。</div>';return}
+  if(!FB.isAdmin()){$('#main').innerHTML='<div class="empty">只有管理員可使用設定。</div>';return}
   if(!admKey) admKey=ADM_LISTS()[0].key;
   if($('#admTop')&&$('#admSel').value===admKey){ renderAdmBody(); return }
   $('#main').innerHTML=`<div id="admTop"><label class="pick"><span>選擇小組</span><select id="admSel">${admOptions()}</select></label>

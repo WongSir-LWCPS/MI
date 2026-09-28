@@ -76,6 +76,19 @@ main{max-width:1080px;margin:0 auto;padding:16px 16px 120px}
 .nsrow{display:grid;grid-template-columns:90px 90px 1fr;gap:8px}
 .nsrow select{height:46px;border:1.5px solid var(--line);border-radius:12px;padding:0 10px;background:#fff;font-size:16px}
 @media (max-width:480px){.nsrow{grid-template-columns:1fr 1fr}.nsrow #nsName{grid-column:1/-1}}
+.st .who b{word-break:keep-all}
+/* English layout */
+html[lang="en"] .brand{flex-wrap:nowrap}
+html[lang="en"] .brand h1{white-space:nowrap}
+html[lang="en"] .brand>span{white-space:nowrap}
+html[lang="en"] .nav button{font-size:14px}
+html[lang="en"] .btns button{width:62px;font-size:13px}
+@media (max-width:480px){
+  html[lang="en"] .nav button{font-size:12.5px;letter-spacing:-.01em}
+  html[lang="en"] .btns button{width:56px;font-size:11.5px;padding:0}
+  html[lang="en"] .cnt span{font-size:9.5px}
+  html[lang="en"] .out{padding:2px 7px;margin-left:4px}
+}
 /* pickers */
 .pick{display:block;margin:0 0 14px}
 .pick span{display:block;font-size:14px;color:var(--mute);margin:0 2px 4px}
@@ -165,11 +178,12 @@ td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td
 <div class="gate" id="gate"><div class="gate-card">
   <h1>樂Kids MI 點名系統</h1><p>樂華天主教小學 2026–2027</p>
   <button class="btn pri" id="login" disabled>載入中…</button>
+  <p style="margin:14px 0 0"><button class="btn" id="langBtn2" data-lang="1" style="width:auto;height:auto;font-size:14px">English</button></p>
   <p class="gate-msg" id="gateMsg" role="status" aria-live="polite"></p>
   <div id="diag" role="alert"></div>
 </div></div>
 <header class="top"><div class="top-in">
-  <div class="brand"><h1>樂Kids MI 點名系統</h1><span><span id="who"></span> <button class="out hide" data-page="adm" id="navAdm" aria-current="false">設定</button><button class="out" id="logout">登出</button></span></div>
+  <div class="brand"><h1>樂Kids MI 點名系統</h1><span><span id="who"></span> <button class="out hide" data-page="adm" id="navAdm" aria-current="false">設定</button><button class="out" id="langBtn" data-lang="1">EN</button><button class="out" id="logout">登出</button></span></div>
   <div class="datebar">
     <button class="arrow" id="prev" aria-label="上一次">‹</button>
     <select id="date" aria-label="活動日期"></select>
@@ -205,6 +219,81 @@ import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager
 import * as CFG from "./firebase-config.js";
 const { firebaseConfig, ALLOWED_DOMAIN, AUTH_PROVIDER } = CFG;
 const ADMINS=(CFG.ADMINS||[]).map(x=>x.toLowerCase());
+// ===== 中英文切換 =====
+const LANG=(()=>{try{return localStorage.getItem('mi-lang')||'zh'}catch(e){return 'zh'}})();
+const EX={ // 完整字句
+ '樂Kids MI 點名系統':'MI Attendance','樂華天主教小學 2026–2027':'Lok Wah Catholic Primary School 2026–2027',
+ '以學校帳戶登入':'Sign in with school account','載入中…':'Loading…','正在載入名單…':'Loading lists…','登出':'Log out','設定':'Settings',
+ '點名':'Roll Call','搜尋學生':'Students','專組名單':'Groups','班別名單':'Classes','小組老師':'Teachers',
+ '選擇小組':'Select group','選擇專組':'Select group','選擇班別':'Select class','選擇老師':'Select teacher',
+ '請選擇小組…':'Select a group…','請選擇你的名字…':'Select your name…',
+ '專組':'Special Interest Groups','支援小組':'Support Groups','大班':'Class Groups',
+ '地點':'Venue','老師':'Teacher','活動':'Activity','人數':'Total','大班 ':'Class group',
+ '本次點名':'This session','全年紀錄':'Full year','本次名單':'This session','全年名單':'Full year','本節':'This session','全年':'Full year',
+ '出席':'Present','缺席':'Absent','豁免':'Exempt','未點':'Unmarked','未點者':'','全部出席':'All present',
+ '匯出本組全年 CSV':'Export this group (CSV)','匯出所有組別全年 CSV':'Export all groups (CSV)','列印點名紙':'Print roll sheet','列印名單':'Print list',
+ '學生':'Student','出席率':'Rate','節數':'Sessions','備註':'Notes','日期':'Date','組別':'Group','不設':'No session',
+ '本次不設節數':'No session','尚未入學':'Not yet enrolled','原班':'Own class','原班活動':'Own class activity',
+ '全年負責的小組':'My groups (full year)','本次沒有負責的小組。':'No groups this session.','藍色底為目前選擇的日期。':'Blue row = selected date.',
+ '選擇你的名字後，會顯示你本次和全年負責的小組、地點及人數。網頁會記住你的選擇。':'Select your name to see your groups, venues and class sizes. Your choice will be remembered.',
+ '請先在上方選擇你負責的小組，便會顯示上課地點、老師及學生名單。':'Select your group above to see the venue, teachers and student list.',
+ '可查看學生全年每次活動的組別、地點和老師。':'Look up where a student is for each session, with venue and teacher.',
+ '輸入學生姓名或班別學號，例如 陳 或 3A05':'Student name or class number, e.g. 陳 or 3A05','輸入學生姓名或班別學號':'Student name or class number',
+ '找不到學生':'No student found','點名紀錄服務未連線，現只可查閱名單。':'Attendance service offline – view only.',
+ '你目前只有檢視權限，未能點名。請向負責人要求「可參與」權限。':'You have view-only access and cannot take attendance.',
+ '本組當日不設節數':'No session for this group','＝參加大班活動。':' = in class-group activity.','橙色字':'Orange text',
+ '新增學生':'Add student','新增插班生':'Add new student','學生姓名':'Student name','學號':'No.','班別':'Class',
+ '修改紀錄':'Change log','已退出':'Left','暫未有修改。':'No changes yet.','暫未有插班生。':'No new students yet.','撤銷':'Undo','刪除':'Remove',
+ '不在原有名單的學生，先在這裏建立，之後便可用上面的搜尋加入小組。插班生由生效日期起列入所屬班別及大班。':'Create students who are not on the original list here, then add them to groups using the search above. They join their class and class group from the effective date.',
+ '只有管理員可使用設定。':'Settings are for administrators only.',
+ '已新增':'Added','已刪除':'Removed','已撤銷':'Undone','已新增插班生':'New student added','你沒有管理員權限':'You are not an administrator','你沒有點名權限':'You cannot take attendance',
+ '儲存失敗，請再試':'Save failed, please retry','儲存失敗，請再按一次':'Save failed, please tap again','撤銷失敗':'Undo failed','刪除失敗':'Remove failed',
+ '請輸入正確學號':'Please enter a valid number','請輸入學生姓名':'Please enter the student name','該生已在本組':'Student is already in this group',
+ '撤銷這項修改？':'Undo this change?','點名紀錄暫時未能更新':'Attendance could not be updated','正在整理所有組別的紀錄…':'Preparing all records…','讀取紀錄失敗，請再試':'Could not read records, retry',
+ '點名紀錄服務未連線':'Attendance service offline',
+ '名單尚未上載，請管理員先在 admin.html 上載名單資料。':'Lists not uploaded yet. Please ask an administrator to upload via admin.html.',
+ '你的帳戶沒有權限查看名單，請聯絡管理員。':'Your account cannot view the lists. Please contact an administrator.'
+};
+const NAMES=[ // 只翻譯地點用語；組別及活動名稱保留中文
+ ['原班課室（老師到班授課）','Own classroom (teachers rotate)'],['English Corner 206室','English Corner Room 206'],
+ ['輔導教學室','Guidance Room'],['祈禱室','Prayer Room'],['行政會議室','Conference Room'],
+ ['五樓平台活動區','5/F Podium Activity Area'],['一樓活動區','1/F Activity Area'],['二樓平台','2/F Podium'],['外廣場','Outdoor Plaza'],['內廣場','Indoor Plaza'],['禮堂','School Hall'],['語言室','Language Room'],['長廊','Corridor'],
+ ['第一組','Group 1'],['第二組','Group 2'],['下學期開始','2nd term starts']
+];
+const RX=[
+ [/^第(\d+)次　(\d+)月(\d+)日（五）(　下學期開始)?$/,(m,a,mo,d,s)=>`#${a}  Fri ${d}/${mo}${s?'  (2nd term)':''}`],
+ [/（已點 (\d+)\/(\d+)）/g,' ($1/$2 marked)'],[/（本次不設）/g,' (no session)'],[/^已點 (\d+)\/(\d+)$/,'$1/$2 marked'],[/人數 (\d+)　已點 (\d+)\/(\d+)/,'Total $1　$2/$3 marked'],
+ [/^全年共 (\d+) 人，本次應到 (\d+) 人$/,'$1 members this year, $2 expected this session'],
+ [/^本次不在此名單上課的學生（(\d+) 人）$/,'Not in this list this session ($1)'],[/^本次不在本組上課的組員（(\d+) 人）$/,'Members not in this group this session ($1)'],
+ [/^本次此名單沒有學生需要出席(（本組不設節數）)?。$/,'No students expected this session.'],[/^本次此組沒有學生上課（本組不設節數）。$/,'No session for this group.'],
+ [/^本次（(\d+)月(\d+)日）負責的小組$/,'My groups this session ($2/$1)'],
+ [/^目前組員（([\d\/]+)，共 (\d+) 人）$/,'Current members ($1, $2)'],[/^插班生（(\d+) 人）$/,'New students ($1)'],
+ [/^([1-6][A-D]) 班（(\d+)人）$/,'$1 ($2)'],[/（(\d+)人）$/,' ($1)'],[/([\d\/]+)（第(\d+)次）/,'$1 (#$2)'],
+ [/^往 /,'At '],[/^已於 ([\d\/]+) 起退出本組$/,'Left from $1'],[/^由 ([\d\/]+) 起加入本組$/,'Joins from $1'],[/^由 ([\d\/]+) 起加入$/,'Joined from $1'],
+ [/^將於 ([\d\/]+) 起退出$/,'Leaves from $1'],[/^由 ([\d\/]+) 起退出$/,'Left from $1'],[/^由 ([\d\/]+) 起生效　/,'Effective $1　'],[/^由 ([\d\/]+) 起入學　?/,'Enrolled from $1　'],
+ [/^新增　/,'Add　'],[/^刪除　/,'Remove　'],[/^小組 (\d)$/,'Team $1'],
+ [/✓ 出席　✗ 缺席　免 豁免　· 未點　灰字＝當日往其他組別/,'✓ Present　✗ Absent　E Exempt　· Unmarked　Grey = in another group'],
+ [/● 在本組上課　灰字＝當日往其他組別　— 本組不設節數。/,'● In this group　Grey = in another group　— No session'],
+ [/^生效日期：以頂部選擇的活動日期為準（目前為 $/,'Effective date: the date selected at the top (currently '],[/^），該日及之後的節數生效。$/,'); applies to that session onwards.'],
+ [/^由 ([\d\/]+) 起把 (.+) 加入「(.+)」？/s,(m,d,s,g)=>`Add ${s} to "${g}" from ${d}?`],[/^由 ([\d\/]+) 起把 (.+) 從「(.+)」刪除？\n之前的點名紀錄會保留。$/s,(m,d,s,g)=>`Remove ${s} from "${g}" from ${d}?\nEarlier attendance records are kept.`],
+ [/\n\n注意：該生原本在這些日子參加「(.+)」，加入後會改為上本組。/,'\n\nNote: the student was in "$1" on these dates and will move to this group.'],
+ [/^新增插班生 (.+)，由 ([\d\/]+) 起入學？$/,'Add new student $1, enrolled from $2?'],[/^刪除插班生 (.+)？$/,'Remove new student $1?'],[/^(.+) 已在名單內$/,'$1 is already on the list']
+];
+function tr(s){
+  if(LANG!=='en'||s==null) return s; s=String(s); if(!/[\u4e00-\u9fff]/.test(s)) return s;
+  const k=s.trim(); if(EX[k]!==undefined) return s.replace(k,EX[k]);
+  let r=s; for(const [re,rep] of RX) r=r.replace(re,rep);
+  for(const [a,b] of NAMES) r=r.split(a).join(b);
+  r=r.replace(/(\d{3})室/g,'Room $1').replace(/或/g,' or ');
+  return r;
+}
+function trDOM(root){
+  if(LANG!=='en'||!root) return;
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); const ns=[]; while(w.nextNode()) ns.push(w.currentNode);
+  ns.forEach(n=>{const v=tr(n.nodeValue); if(v!==n.nodeValue) n.nodeValue=v});
+  root.querySelectorAll('[placeholder],[aria-label],optgroup[label],[title]').forEach(el=>['placeholder','aria-label','label','title'].forEach(a=>{if(el.hasAttribute(a)) el.setAttribute(a,tr(el.getAttribute(a)))}));
+}
+
 
 const fbApp=initializeApp(firebaseConfig);
 const auth=getAuth(fbApp);
@@ -220,20 +309,23 @@ document.getElementById('login').onclick=async()=>{ gateMsg.textContent='';
 document.getElementById('login').disabled=false; document.getElementById('login').textContent='以學校帳戶登入'; window.__miReady=true;
 getRedirectResult(auth).catch(e=>{gateMsg.textContent='登入失敗：'+(e.code||e.message)});
 document.getElementById('logout').onclick=()=>signOut(auth).then(()=>location.reload());
+document.querySelectorAll('[data-lang]').forEach(b=>{ if(LANG==='en') b.textContent=b.id==='langBtn'?'中':'中文';
+  b.onclick=()=>{try{localStorage.setItem('mi-lang',LANG==='en'?'zh':'en')}catch(e){} location.reload()} });
+if(LANG==='en'){ document.documentElement.lang='en'; document.title='Lok Kids MI Attendance'; trDOM(document.getElementById('gate')); document.querySelector('.brand h1').textContent=EX['樂Kids MI 點名系統']; trDOM(document.querySelector('.nav')); }
 let started=false;
 onAuthStateChanged(auth,async user=>{
   if(!user){ gate.classList.remove('hide'); return; }
   if(ALLOWED_DOMAIN && !String(user.email||'').toLowerCase().endsWith('@'+ALLOWED_DOMAIN.toLowerCase())){
     gateMsg.textContent=`請使用學校電郵（@${ALLOWED_DOMAIN}）登入。`; await signOut(auth); gate.classList.remove('hide'); return; }
   document.getElementById('who').textContent=user.email;
-  gateMsg.textContent='正在載入名單…';
+  gateMsg.textContent=tr('正在載入名單…');
   try{
     const snap=await getDoc(doc(fdb,'config','roster'));
-    if(!snap.exists()){ gateMsg.textContent='名單尚未上載，請管理員先在 admin.html 上載名單資料。'; gate.classList.remove('hide'); return; }
+    if(!snap.exists()){ gateMsg.textContent=tr('名單尚未上載，請管理員先在 admin.html 上載名單資料。'); gate.classList.remove('hide'); return; }
     const DATA=JSON.parse(snap.data().json);
     gate.classList.add('hide');
     if(!started){ started=true; startApp(DATA,FB); }
-  }catch(e){ console.error(e); gateMsg.textContent=e.code==='permission-denied'?'你的帳戶沒有權限查看名單，請聯絡管理員。':'載入名單失敗：'+(e.code||e.message); gate.classList.remove('hide'); }
+  }catch(e){ console.error(e); gateMsg.textContent=e.code==='permission-denied'?tr('你的帳戶沒有權限查看名單，請聯絡管理員。'):'Error: '+(e.code||e.message); gate.classList.remove('hide'); }
 });
 
 function startApp(DATA,FB){
@@ -296,7 +388,8 @@ function renderDate(){
   document.querySelectorAll('.nav button,#navAdm').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'));
 }
 // ---------- pages ----------
-function render(){
+function render(){ renderInner(); trDOM(document.querySelector('.top')); trDOM($('#main')); trDOM($('#foot')); }
+function renderInner(){
   renderDate();
   if(page==='find'&&$('#q')){ $('#foot').classList.add('hide'); return renderFindRes(); }
   $('#foot').classList.toggle('hide',!(page==='roll'&&listKey&&mode==='day'));
@@ -385,14 +478,16 @@ function renderAdm(){
   </div></div><div id="admBody"></div>`;
   $('#admQ').value=admQ; renderAdmRes(); renderAdmBody();
 }
-function renderAdmRes(){
+function renderAdmRes(){ renderAdmRes_(); trDOM($('#main')); }
+function renderAdmRes_(){
   const L=byKey[admKey]; let h='';
   if(admQ){const qq=admQ.toUpperCase(),qn=qq.replace(/[()（）\s]/g,'').replace(/^([1-6][A-D])(\d)$/,'$10$2');
     const hits=Object.keys(ST).filter(s=>(qn&&s.includes(qn))||ST[s][0].includes(admQ)).slice(0,20);
     h=hits.length?`<div class="hits">${hits.map(s=>`<button class="chip" data-addstu="${s}">${esc(fmt(s))}</button>`).join('')}</div>`:'<div class="empty">找不到學生</div>';}
   $('#admRes').innerHTML=h;
 }
-function renderAdmBody(){
+function renderAdmBody(){ renderAdmBody_(); trDOM($('#main')); }
+function renderAdmBody_(){
   const L=byKey[admKey], i=dateI; if($('#admFrom')) $('#admFrom').textContent=`${md(i)}（第${i+1}次）`;
   const cur=L.members.filter(s=>!(L.removed[s]!==undefined&&L.removed[s]<=i));
   const gone=L.members.filter(s=>L.removed[s]!==undefined&&L.removed[s]<=i);
@@ -417,14 +512,14 @@ async function addNewStudent(){
   const sid=cls+String(no).padStart(2,'0');
   if(ST[sid]){toast(`${fmt(sid)} 已在名單內`);return}
   const i=dateI;
-  if(!confirm(`新增插班生 ${cls}(${String(no).padStart(2,'0')}) ${name}，由 ${md(i)} 起入學？`)) return;
+  if(!confirm_(`新增插班生 ${cls}(${String(no).padStart(2,'0')}) ${name}，由 ${md(i)} 起入學？`)) return;
   try{ await FB.setDoc(FB.doc(FB.db,'extraStudents',sid),{cls,no:String(no).padStart(2,'0'),name,from:DATA.dates[i],by:FB.email(),t:FB.serverTimestamp(),ts:Date.now()});
        toast('已新增插班生'); $('#nsNo').value=''; $('#nsName').value=''; }
   catch(e){console.error(e);toast(e.code==='permission-denied'?'你沒有管理員權限':'儲存失敗，請再試')}
 }
 async function delNewStudent(sid){
-  if(CHANGES.some(c=>c.sid===sid)){ if(!confirm(`${fmt(sid)} 仍有加入小組的紀錄。刪除插班生後，這些紀錄不會再生效。確定刪除？`)) return }
-  else if(!confirm(`刪除插班生 ${fmt(sid)}？`)) return;
+  if(CHANGES.some(c=>c.sid===sid)){ if(!confirm_(`${fmt(sid)} 仍有加入小組的紀錄。刪除插班生後，這些紀錄不會再生效。確定刪除？`)) return }
+  else if(!confirm_(`刪除插班生 ${fmt(sid)}？`)) return;
   try{ await FB.deleteDoc(FB.doc(FB.db,'extraStudents',sid)); toast('已刪除') }catch(e){console.error(e);toast(e.code==='permission-denied'?'你沒有管理員權限':'刪除失敗')}
 }
 async function addChange(action,sid){
@@ -432,14 +527,14 @@ async function addChange(action,sid){
   if(action==='add'){
     if(L.members.includes(sid)&&!(L.removed[sid]!==undefined)){toast('該生已在本組');return}
     const clash=[...new Set(sessOf(L).filter(j=>j>=i).map(j=>SC[sid][j]).filter(v=>v&&v!==labOf(L)))];
-    if(!confirm(`由 ${md(i)} 起把 ${fmt(sid)} 加入「${L.name}」？${clash.length?`\n\n注意：該生原本在這些日子參加「${clash.join('、')}」，加入後會改為上本組。`:''}`)) return;
-  }else if(!confirm(`由 ${md(i)} 起把 ${fmt(sid)} 從「${L.name}」刪除？\n之前的點名紀錄會保留。`)) return;
+    if(!confirm_(`由 ${md(i)} 起把 ${fmt(sid)} 加入「${L.name}」？${clash.length?`\n\n注意：該生原本在這些日子參加「${clash.join('、')}」，加入後會改為上本組。`:''}`)) return;
+  }else if(!confirm_(`由 ${md(i)} 起把 ${fmt(sid)} 從「${L.name}」刪除？\n之前的點名紀錄會保留。`)) return;
   try{ await FB.addDoc(FB.collection(FB.db,'rosterChanges'),{list:L.key,sid,action,from:DATA.dates[i],note:'',by:FB.email(),t:FB.serverTimestamp(),ts:Date.now()});
        toast(action==='add'?'已新增':'已刪除'); admQ=''; if($('#admQ')){$('#admQ').value='';renderAdmRes()} }
   catch(e){console.error(e);toast(e.code==='permission-denied'?'你沒有管理員權限':'儲存失敗，請再試')}
 }
 async function undoChange(id){
-  if(!confirm('撤銷這項修改？')) return;
+  if(!confirm_('撤銷這項修改？')) return;
   try{ await FB.deleteDoc(FB.doc(FB.db,'rosterChanges',id)); toast('已撤銷') }catch(e){console.error(e);toast(e.code==='permission-denied'?'你沒有管理員權限':'撤銷失敗')}
 }
 function progress(L){
@@ -487,7 +582,7 @@ function yearTable(L){
   let h='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,i)=>`<th class="${i===dateI?'cur':''}">${md(i)}</th>`).join('')+'<th>出席率</th></tr></thead><tbody>';
   L.members.forEach(s=>{let n=0,p=0;
     h+=`<tr><td class="l">${esc(fmt(s))}</td>`+D.map((d,i)=>{const st=status(L,s,i);
-      if(!st.exp) return `<td class="x" title="${esc(st.why)}">${SC[s][i]?esc(SC[s][i].slice(0,2)):'—'}</td>`;
+      if(!st.exp) return `<td class="x" title="${esc(st.why)}">${SC[s][i]?esc(LANG==='en'?SC[s][i]:SC[s][i].slice(0,2)):'—'}</td>`;
       const v=(yearAtt[ymd(i)]||{})[s]; if(v&&v!=='E')n++; if(v==='P'||v==='L')p++;
       return `<td class="${v||''}">${v==='P'?'✓':v==='L'?'遲':v==='A'?'✗':v==='E'?'免':'·'}</td>`}).join('')+`<td>${n?Math.round(p/n*100)+'%':'—'}</td></tr>`});
   return h+'</tbody></table></div><p class="legend">✓ 出席　✗ 缺席　免 豁免　· 未點　灰字＝當日往其他組別</p>';
@@ -496,7 +591,8 @@ function renderFind(){
   $('#main').innerHTML=`<input class="field" id="q" type="search" placeholder="輸入學生姓名或班別學號，例如 陳 或 3A05" autocomplete="off" autocorrect="off" spellcheck="false"><div id="findRes"></div>`;
   $('#q').value=q; renderFindRes();
 }
-function renderFindRes(){
+function renderFindRes(){ renderFindRes_(); trDOM($('#main')); }
+function renderFindRes_(){
   let h='';
   if(q&&!stu){const qq=q.toUpperCase(); const qn=qq.replace(/[()（）\s]/g,'').replace(/^([1-6][A-D])(\d)$/,'$10$2'); const hits=Object.keys(ST).filter(s=>(qn&&s.includes(qn))||ST[s][0].includes(q)).slice(0,40);
     h+=hits.length?`<div class="hits">${hits.map(s=>`<button class="chip" data-stu="${s}">${esc(fmt(s))}</button>`).join('')}</div>`:'<div class="empty">找不到學生</div>';}
@@ -533,7 +629,7 @@ const TORDER=DATA.torder||[];
 const TNAMES=TORDER; const TOTHER=Object.keys(TEACH).filter(n=>!TORDER.includes(n));
 let me=store.get('mi-me'); if(!TORDER.includes(me)&&!TEACH[me]) me='';
 function renderMe(){
-  let h=`<label class="pick"><span>選擇老師</span><select id="meSel"><option value="" ${me?'':'selected'}>請選擇你的名字…</option><optgroup label="教師">${TNAMES.map(n=>`<option ${n===me?'selected':''}>${esc(n)}</option>`).join('')}</optgroup><optgroup label="其他導師／負責人">${TOTHER.map(n=>`<option ${n===me?'selected':''}>${esc(n)}</option>`).join('')}</optgroup></select></label>`;
+  let h=`<label class="pick"><span>選擇老師</span><select id="meSel"><option value="" ${me?'':'selected'}>請選擇你的名字…</option>${[...TNAMES,...TOTHER].map(n=>`<option ${n===me?'selected':''}>${esc(n)}</option>`).join('')}</select></label>`;
   if(!me){$('#main').innerHTML=h+'<p class="hint">選擇你的名字後，會顯示你本次和全年負責的小組、地點及人數。網頁會記住你的選擇。</p>';return}
   const items=TEACH[me]||[];
   const cnt=(L,i)=>L.members.filter(s=>status(L,s,i).exp).length;
@@ -617,7 +713,8 @@ async function exportAll(){
   const t=new Date(); const stamp=`${t.getFullYear()}${String(t.getMonth()+1).padStart(2,'0')}${String(t.getDate()).padStart(2,'0')}`;
   saveFile(`MI點名_所有組別全年_${stamp}.csv`,csvText(rows));
 }
-let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
+const confirm_=m=>confirm(tr(m));
+let tt;function toast(m){const t=$('#toast');t.textContent=tr(m);t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
 
 // ---------- events ----------
 document.addEventListener('click',e=>{

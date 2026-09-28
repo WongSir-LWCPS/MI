@@ -72,6 +72,9 @@ main{max-width:1080px;margin:0 auto;padding:16px 16px 120px}
   .pick select{font-size:16px;height:48px}
   .tag{max-width:42%}
 }
+.nsrow{display:grid;grid-template-columns:90px 90px 1fr;gap:8px}
+.nsrow select{height:46px;border:1.5px solid var(--line);border-radius:12px;padding:0 10px;background:#fff;font-size:16px}
+@media (max-width:480px){.nsrow{grid-template-columns:1fr 1fr}.nsrow #nsName{grid-column:1/-1}}
 /* pickers */
 .pick{display:block;margin:0 0 14px}
 .pick span{display:block;font-size:14px;color:var(--mute);margin:0 2px 4px}
@@ -132,6 +135,7 @@ td.l,th.l{text-align:left;position:sticky;left:0;background:var(--card);z-index:
 th.l{background:var(--blue-l)}
 th.cur{background:var(--blue);color:#fff}
 td.x{color:var(--mute);font-size:12px}
+td.o{color:var(--late);font-weight:500}
 td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td.E{color:var(--ex);font-weight:700} td.A{color:var(--bad);font-weight:700}
 .legend{font-size:13px;color:var(--mute);margin:8px 2px}
 /* search + class */
@@ -270,6 +274,7 @@ function status(L,s,i){
   const v=SC[s][i];
   if(L.removed&&L.removed[s]!==undefined&&i>=L.removed[s]) return {exp:false,why:`已於 ${md(L.removed[s])} 起退出本組`};
   if(L.added&&L.added[s]!==undefined&&i<L.added[s]&&v!==(L.kind==='g'?L.label:L.expect)) return {exp:false,why:`由 ${md(L.added[s])} 起加入本組`};
+  if(v==='尚未入學') return {exp:false,why:'尚未入學'};
   if(L.kind==='g'){ if(v===L.label) return {exp:true}; return {exp:false,why:v?`往 ${v}`:'本組當日不設節數'} }
   if(v===L.expect) return {exp:true};
   return {exp:false,why:`往 ${v}`};
@@ -277,6 +282,7 @@ function status(L,s,i){
 function perOf(L,i){return L.kind==='g'?{act:L.name,teachers:L.teachers,venue:L.venue}:L.per[i]}
 function whereIs(s,i){
   const v=SC[s][i];
+  if(v==='尚未入學') return {what:'尚未入學',venue:'',who:''};
   if(!v||v==='成長機地'){const r=rotOf[s]; if(r){const p=r.per[i];return {what:`${r.name}　${p.act}`,venue:p.venue,who:p.teachers}}}
   const g=byLabel[v]; return g?{what:g.name,venue:g.venue,who:g.teachers}:{what:v||'原班活動',venue:'',who:''};
 }
@@ -313,6 +319,23 @@ function sessOf(L){ // 本組有上課的日子（按原本名單）
   const lab=L.label, out=[]; D.forEach((d,i)=>{ if(MEM0.get(L).some(s=>SC0[s][i]===lab)) out.push(i) }); return out.length?out:D.map((d,i)=>i);
 }
 let CHANGES=[];
+// 插班生（不在原有名單的學生）
+let EXTRA={}; const STEAMI=DATA.dates.indexOf('2026-11-20');
+function applyExtras(list){
+  Object.keys(EXTRA).forEach(s=>{ delete ST[s]; delete SC0[s]; delete SC[s]; const c=DATA.classes[EXTRA[s].cls]; if(c){const k=c.indexOf(s); if(k>=0)c.splice(k,1)} });
+  EXTRA={};
+  list.forEach(x=>{ const s=x.id; if(ST[s]) return; // 學號已存在
+    const k=Math.max(0,DATA.dates.indexOf(x.from));
+    EXTRA[s]=x; ST[s]=[x.name,x.cls];
+    SC0[s]=D.map((d,i)=>i<k?'尚未入學':(x.cls[0]==='6'&&i===STEAMI?'同根同心':''));
+    (DATA.classes[x.cls]=DATA.classes[x.cls]||[]).push(s); DATA.classes[x.cls].sort();
+  });
+}
+function subExtras(){
+  FB.onSnapshot(FB.collection(FB.db,'extraStudents'),snap=>{
+    applyExtras(snap.docs.map(d=>Object.assign({id:d.id},d.data()))); applyChanges(); render();
+  },e=>console.error(e));
+}
 function applyChanges(){
   Object.keys(SC0).forEach(s=>SC[s]=SC0[s].slice());
   ALLL.forEach(l=>{l.members=MEM0.get(l).slice(); l.added={}; l.removed={}});
@@ -350,6 +373,15 @@ function renderAdm(){
     <input class="field" id="admQ" type="search" placeholder="輸入學生姓名或班別學號" autocomplete="off" spellcheck="false">
     <div id="admRes"></div>
     <p class="hint" style="margin:8px 0 0">生效日期：以頂部選擇的活動日期為準（目前為 <b id="admFrom"></b>），該日及之後的節數生效。</p>
+  </div>
+  <div class="panel"><h2 style="margin:0 0 4px">新增插班生</h2>
+    <p class="hint" style="margin:0 0 10px">不在原有名單的學生，先在這裏建立，之後便可用上面的搜尋加入小組。插班生由生效日期起列入所屬班別及大班。</p>
+    <div class="nsrow">
+      <select id="nsCls" aria-label="班別">${['1A','1B','1C','1D','2A','2B','2C','2D','3A','3B','3C','3D','4A','4B','4C','4D','5A','5B','5C','5D','6A','6B','6C','6D'].map(c=>`<option>${c}</option>`).join('')}</select>
+      <input class="field" id="nsNo" type="number" min="1" max="45" placeholder="學號" aria-label="學號">
+      <input class="field" id="nsName" type="text" placeholder="學生姓名" aria-label="學生姓名" autocomplete="off">
+    </div>
+    <button class="btn pri" id="nsAdd" style="margin-top:10px">新增插班生</button>
   </div></div><div id="admBody"></div>`;
   $('#admQ').value=admQ; renderAdmRes(); renderAdmBody();
 }
@@ -372,7 +404,28 @@ function renderAdmBody(){
   h+=`<div class="sec">修改紀錄</div>`+(log.length?'<div class="list">'+log.map(c=>{const k=DATA.dates.indexOf(c.from);
       return `<div class="st"><div class="who"><b>${c.action==='add'?'新增':'刪除'}　${ST[c.sid]?esc(fmt(c.sid)):esc(c.sid)}</b><small>由 ${k>=0?md(k):c.from} 起生效　${esc(c.by||'')}</small></div><button class="btn" data-undo="${c.id}">撤銷</button></div>`}).join('')+'</div>'
     :'<div class="empty" style="padding:14px">暫未有修改。</div>');
+  const ex=Object.keys(EXTRA).sort();
+  h+=`<div class="sec">插班生（${ex.length} 人）</div>`+(ex.length?'<div class="list">'+ex.map(s=>{const x=EXTRA[s],k=DATA.dates.indexOf(x.from);
+      return `<div class="st"><div class="who"><b>${esc(fmt(s))}</b><small>由 ${k>=0?md(k):x.from} 起入學　${esc(x.by||'')}</small></div><button class="btn" data-delns="${s}">刪除</button></div>`}).join('')+'</div>'
+    :'<div class="empty" style="padding:14px">暫未有插班生。</div>');
   $('#admBody').innerHTML=h;
+}
+async function addNewStudent(){
+  const cls=$('#nsCls').value, no=parseInt($('#nsNo').value,10), name=$('#nsName').value.trim();
+  if(!no||no<1||no>45){toast('請輸入正確學號');return}
+  if(!name){toast('請輸入學生姓名');return}
+  const sid=cls+String(no).padStart(2,'0');
+  if(ST[sid]){toast(`${fmt(sid)} 已在名單內`);return}
+  const i=dateI;
+  if(!confirm(`新增插班生 ${cls}(${String(no).padStart(2,'0')}) ${name}，由 ${md(i)} 起入學？`)) return;
+  try{ await FB.setDoc(FB.doc(FB.db,'extraStudents',sid),{cls,no:String(no).padStart(2,'0'),name,from:DATA.dates[i],by:FB.email(),t:FB.serverTimestamp(),ts:Date.now()});
+       toast('已新增插班生'); $('#nsNo').value=''; $('#nsName').value=''; }
+  catch(e){console.error(e);toast(e.code==='permission-denied'?'你沒有管理員權限':'儲存失敗，請再試')}
+}
+async function delNewStudent(sid){
+  if(CHANGES.some(c=>c.sid===sid)){ if(!confirm(`${fmt(sid)} 仍有加入小組的紀錄。刪除插班生後，這些紀錄不會再生效。確定刪除？`)) return }
+  else if(!confirm(`刪除插班生 ${fmt(sid)}？`)) return;
+  try{ await FB.deleteDoc(FB.doc(FB.db,'extraStudents',sid)); toast('已刪除') }catch(e){console.error(e);toast(e.code==='permission-denied'?'你沒有管理員權限':'刪除失敗')}
 }
 async function addChange(action,sid){
   const L=byKey[admKey], i=dateI;
@@ -437,7 +490,7 @@ function yearTable(L){
       if(!st.exp) return `<td class="x" title="${esc(st.why)}">${SC[s][i]?esc(SC[s][i].slice(0,2)):'—'}</td>`;
       const v=(yearAtt[ymd(i)]||{})[s]; if(v&&v!=='E')n++; if(v==='P'||v==='L')p++;
       return `<td class="${v||''}">${v==='P'?'✓':v==='L'?'遲':v==='A'?'✗':v==='E'?'免':'·'}</td>`}).join('')+`<td>${n?Math.round(p/n*100)+'%':'—'}</td></tr>`});
-  return h+'</tbody></table></div><p class="legend">✓ 出席　✗ 缺席　免 豁免　· 未點　灰字＝當日往其他組別　— 不設節數。出席率＝出席次數 ÷（已點名節數 − 豁免），未點的節數不計算。</p>';
+  return h+'</tbody></table></div><p class="legend">✓ 出席　✗ 缺席　免 豁免　· 未點　灰字＝當日往其他組別</p>';
 }
 function renderFind(){
   $('#main').innerHTML=`<input class="field" id="q" type="search" placeholder="輸入學生姓名或班別學號，例如 陳 或 3A05" autocomplete="off" autocorrect="off" spellcheck="false"><div id="findRes"></div>`;
@@ -492,7 +545,7 @@ function renderMe(){
   D.forEach((d,i)=>{const xs=items.filter(x=>x.i===i);
     if(!xs.length){h+=`<tr><td class="l">${md(i)}</td><td colspan="4" class="x" style="text-align:left">—</td></tr>`;return}
     xs.forEach(({L,p,venue},k)=>{const n=cnt(L,i);h+=`<tr${i===dateI?' style="background:var(--blue-l)"':''}><td class="l">${k?'':md(i)}</td><td style="text-align:left"><b>${esc(L.name)}</b></td><td style="text-align:left">${esc(L.kind==='r'?p.act:L.name)}</td><td style="text-align:left">${esc(venue)}</td><td>${NOROLL(L)?'—':(n||'不設')}</td></tr>`})});
-  h+='</tbody></table></div><p class="legend">藍色底為目前選擇的日期。按「點名」可直接進入該組點名。</p>';
+  h+='</tbody></table></div><p class="legend">藍色底為目前選擇的日期。</p>';
   $('#main').innerHTML=h;
 }
 function renderCls(){
@@ -502,8 +555,8 @@ function renderCls(){
   const sids=DATA.classes[cls];
   if(mode==='year'){
     h+='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,j)=>`<th class="${j===dateI?'cur':''}">${md(j)}</th>`).join('')+'</tr></thead><tbody>'+
-      sids.map(s=>`<tr><td class="l">${esc(fmt(s))}</td>`+D.map((d,j)=>{const v=SC[s][j],r=rotOf[s];return `<td class="${v?'':'x'}">${esc(v||(r?r.name:'原班'))}</td>`}).join('')+'</tr>').join('')+
-      '</tbody></table></div><p class="legend">灰字＝參加大班活動。</p>';
+      sids.map(s=>`<tr><td class="l">${esc(fmt(s))}</td>`+D.map((d,j)=>{const v=SC[s][j],r=rotOf[s];return `<td class="${v?'':'o'}">${esc(v||(r?r.name:'原班'))}</td>`}).join('')+'</tr>').join('')+
+      '</tbody></table></div><p class="legend"><span style="color:var(--late);font-weight:700">橙色字</span>＝參加大班活動。</p>';
   }else{
     h+='<div class="list sched">'+sids.map(s=>{const w=whereIs(s,dateI);return `<div class="st"><div class="who"><b>${esc(fmt(s))}</b><small>${esc(w.what)}</small></div><span class="tag">${esc(w.venue)}</span></div>`}).join('')+'</div>';
   }
@@ -578,6 +631,8 @@ document.addEventListener('click',e=>{
   if(b.dataset.addstu){addChange('add',b.dataset.addstu);return}
   if(b.dataset.rmstu){addChange('remove',b.dataset.rmstu);return}
   if(b.dataset.undo){undoChange(b.dataset.undo);return}
+  if(b.id==='nsAdd'){addNewStudent();return}
+  if(b.dataset.delns){delNewStudent(b.dataset.delns);return}
   if(b.dataset.go){page='roll';listKey=b.dataset.go;mode='day';store.set('mi-last',listKey);subYear();render();scrollTo(0,0);return}
   if(b.id==='csv'){exportCSV();return}
   if(b.id==='csvAll'){exportAll();return}
@@ -603,7 +658,7 @@ document.addEventListener('change',e=>{
 {const l=store.get('mi-last'); if(l&&LISTS.some(x=>x.key===l)) listKey=l;}
 if(FB.isAdmin()) $('#navAdm').classList.remove('hide');
 render();
-db=FB; subDay(); subYear(); subChanges();
+db=FB; subDay(); subYear(); subChanges(); subExtras();
 }
 </script>
 </body>

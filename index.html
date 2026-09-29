@@ -252,6 +252,7 @@ const EX={ // 完整字句
  '撤銷這項修改？':'Undo this change?','點名紀錄暫時未能更新':'Attendance could not be updated','正在整理所有組別的紀錄…':'Preparing all records…','讀取紀錄失敗，請再試':'Could not read records, retry',
  '點名紀錄服務未連線':'Attendance service offline',
  '名單尚未上載，請管理員先在 admin.html 上載名單資料。':'Lists not uploaded yet. Please ask an administrator to upload via admin.html.',
+ '學生帳戶不能使用此系統，請使用教職員帳戶登入。':'Student accounts cannot use this system. Please sign in with a staff account.',
  '你的帳戶沒有權限查看名單，請聯絡管理員。':'Your account cannot view the lists. Please contact an administrator.'
 };
 const NAMES=[ // 只翻譯地點用語；組別及活動名稱保留中文
@@ -315,6 +316,8 @@ if(LANG==='en'){ document.documentElement.lang='en'; document.title='Lok Kids MI
 let started=false;
 onAuthStateChanged(auth,async user=>{
   if(!user){ gate.classList.remove('hide'); return; }
+  if(CFG.BLOCKED_EMAIL && CFG.BLOCKED_EMAIL.test(String(user.email||''))){
+    gateMsg.textContent=tr('學生帳戶不能使用此系統，請使用教職員帳戶登入。'); await signOut(auth); gate.classList.remove('hide'); return; }
   if(ALLOWED_DOMAIN && !String(user.email||'').toLowerCase().endsWith('@'+ALLOWED_DOMAIN.toLowerCase())){
     gateMsg.textContent=`請使用學校電郵（@${ALLOWED_DOMAIN}）登入。`; await signOut(auth); gate.classList.remove('hide'); return; }
   document.getElementById('who').textContent=user.email;

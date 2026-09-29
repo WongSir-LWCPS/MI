@@ -44,7 +44,8 @@ input[type=file]{margin:10px 0}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig, ALLOWED_DOMAIN, AUTH_PROVIDER } from "./firebase-config.js";
+import * as CFG from "./firebase-config.js";
+const { firebaseConfig, ALLOWED_DOMAIN, AUTH_PROVIDER } = CFG;
 const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app);
 const $=id=>document.getElementById(id);
 const prov=()=>{if(AUTH_PROVIDER==='microsoft')return new OAuthProvider('microsoft.com');const p=new GoogleAuthProvider();if(ALLOWED_DOMAIN)p.setCustomParameters({hd:ALLOWED_DOMAIN});return p};
@@ -63,6 +64,7 @@ window.__miReady=true;
 let text=null;
 onAuthStateChanged(auth,async u=>{
   if(!u) return;
+  if(CFG.BLOCKED_EMAIL&&CFG.BLOCKED_EMAIL.test(u.email||'')){ $('who').textContent='學生帳戶不能使用此系統。'; auth.signOut(); return; }
   if(ALLOWED_DOMAIN&&!u.email.toLowerCase().endsWith('@'+ALLOWED_DOMAIN)){ $('who').textContent='請使用 @'+ALLOWED_DOMAIN+' 帳戶登入（現為 '+u.email+'）'; return; }
   $('who').textContent='已登入：'+u.email;
   try{const s=await getDoc(doc(db,'config','roster'));

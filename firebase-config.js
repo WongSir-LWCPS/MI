@@ -17,3 +17,6 @@ export const AUTH_PROVIDER = "google";
 
 // 管理員：可在「管理」頁中途新增／刪除組員（須與 firestore.rules 的 isAdmin() 一致）
 export const ADMINS = ["wywong@lwcps.edu.hk", "it@lwcps.edu.hk", "rchen@lwcps.edu.hk"];
+
+// 不可登入的帳戶格式：學生帳戶（例如 s123456@lwcps.edu.hk）
+export const BLOCKED_EMAIL = /^s\d+@/i;

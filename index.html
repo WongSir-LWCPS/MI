@@ -227,7 +227,7 @@ const EX={ // 完整字句
  '點名':'Roll Call','搜尋學生':'Students','專組名單':'Groups','班別名單':'Classes','小組老師':'Teachers',
  '選擇小組':'Select group','選擇專組':'Select group','選擇班別':'Select class','選擇老師':'Select teacher',
  '請選擇小組…':'Select a group…','請選擇你的名字…':'Select your name…',
- '專組':'Special Interest Groups','支援小組':'Support Groups','大班':'Class Groups',
+ '專組':'Special Interest Groups','升中輔導班':'Secondary Prep Class','支援小組':'Support Groups','大班':'Class Groups',
  '地點':'Venue','老師':'Teacher','活動':'Activity','人數':'Total','大班 ':'Class group',
  '本次點名':'This session','全年紀錄':'Full year','本次名單':'This session','全年名單':'Full year','本節':'This session','全年':'Full year',
  '出席':'Present','缺席':'Absent','豁免':'Exempt','未點':'Unmarked','未點者':'','全部出席':'All present',
@@ -340,13 +340,15 @@ const RN={rP34Gr1:'3AB',rP34Gr2:'3CD',rP34Gr3:'P.4',rP5Gr3:'5AC',rP5Gr4:'5BD'}; 
 // 成長機地：分 Group 1（501室）及 Group 2（502室）點名
 const CJ=[['rP5Gr1','賽馬會成長機地 Group 1'],['rP5Gr2','賽馬會成長機地 Group 2']].map(([k,n])=>{const r=DATA.rotations.find(x=>x.key===k);
   r.name=n; r.cat='專組'; Object.keys(r.remarks||{}).forEach(s=>r.remarks[s]=r.remarks[s].replace('Group ','小組 ')); return r});
+const isP6=r=>/^r6/.test(r.key)||r.name==='升中輔導班精英組'; // 升中輔導班（六年級）
+const NOROLL=()=>false;
 const SUPPORT=['數學至叻星','童樂遊','LEGO天地','Master Board','乒乓小苗']; // 支援小組
 DATA.groups.forEach(g=>{if(SUPPORT.includes(g.name))g.cat='支援小組'});
-const ROLL_G=DATA.groups.flatMap(g=>g.label==='成長機地'?CJ:(g.cat==='支援小組'?[]:[g]));
+const ROLL_G=DATA.groups.flatMap(g=>g.label==='成長機地'?CJ:((g.cat==='支援小組'||isP6(g))?[]:[g]));
 const ROLL_S=DATA.groups.filter(g=>g.cat==='支援小組');
-const NOROLL=r=>/^r6/.test(r.key); // 六年級升中輔導班：不需點名
-const ROLL_R=DATA.rotations.filter(r=>!CJ.includes(r)&&!NOROLL(r));
-const LISTS=[...ROLL_G,...ROLL_S,...ROLL_R];
+const ROLL_R=DATA.rotations.filter(r=>!CJ.includes(r)&&!isP6(r));
+const ROLL_P6=[...DATA.rotations.filter(isP6),...DATA.groups.filter(isP6)]; ROLL_P6.forEach(l=>l.cat='升中輔導班');
+const LISTS=[...ROLL_G,...ROLL_S,...ROLL_R,...ROLL_P6];
 const byKey={}; [...DATA.groups,...DATA.rotations].forEach(l=>byKey[l.key]=l);
 const byLabel={}; DATA.groups.forEach(g=>byLabel[g.label]=g);
 const rotOf={}; function buildRotOf(){Object.keys(rotOf).forEach(k=>delete rotOf[k]); DATA.rotations.forEach(r=>r.members.forEach(s=>{if(!rotOf[s])rotOf[s]=r}));} buildRotOf();
@@ -370,6 +372,7 @@ function status(L,s,i){
   if(L.removed&&L.removed[s]!==undefined&&i>=L.removed[s]) return {exp:false,why:`已於 ${md(L.removed[s])} 起退出本組`};
   if(L.added&&L.added[s]!==undefined&&i<L.added[s]&&v!==(L.kind==='g'?L.label:L.expect)) return {exp:false,why:`由 ${md(L.added[s])} 起加入本組`};
   if(v==='尚未入學') return {exp:false,why:'尚未入學'};
+  if(L.dual&&L.dual.includes(s)&&v&&v!=='同根同心') return {exp:true};
   if(L.kind==='g'){ if(v===L.label) return {exp:true}; return {exp:false,why:v?`往 ${v}`:'本組當日不設節數'} }
   if(v===L.expect) return {exp:true};
   return {exp:false,why:`往 ${v}`};
@@ -407,7 +410,7 @@ function renderInner(){
 // ---------- 中途修改名單（管理員） ----------
 const SC0={}; Object.keys(SC).forEach(s=>SC0[s]=SC[s].slice());
 const ALLL=[...DATA.groups,...DATA.rotations]; const MEM0=new Map(ALLL.map(l=>[l,l.members.slice()]));
-const CLASSROT={}; DATA.rotations.filter(r=>!CJ.includes(r)).forEach(r=>MEM0.get(r).forEach(s=>{const c=ST[s][1]; if(!CLASSROT[c])CLASSROT[c]=r}));
+const CLASSROT={}, SROT0={}; DATA.rotations.filter(r=>!CJ.includes(r)).forEach(r=>MEM0.get(r).forEach(s=>{const c=ST[s][1]; if(!CLASSROT[c])CLASSROT[c]=r; if(!SROT0[s])SROT0[s]=r}));
 const CJG=DATA.groups.find(g=>g.label==='成長機地');
 const labOf=L=>L.kind==='g'?L.label:L.expect;
 function sessOf(L){ // 本組有上課的日子（按原本名單）
@@ -447,7 +450,7 @@ function applyChanges(){
     }
   });
   // 有空檔的學生歸入所屬大班
-  Object.keys(SC).forEach(s=>{ if(SC[s].some(v=>!v)){ const r=CLASSROT[ST[s][1]]; if(r&&!r.members.includes(s)) r.members.push(s) } });
+  Object.keys(SC).forEach(s=>{ if(SC[s].some(v=>!v)){ if(ALLL.some(l=>l.kind==='r'&&!CJ.includes(l)&&l.members.includes(s))) return; const r=SROT0[s]||CLASSROT[ST[s][1]]; if(r&&!r.members.includes(s)) r.members.push(s) } });
   DATA.rotations.forEach(r=>{ if(!CJ.includes(r)) r.members.sort() });
   buildRotOf();
 }
@@ -457,9 +460,9 @@ function subChanges(){
   },e=>{console.error(e)});
 }
 let admKey=null, admQ='', admComposing=false;
-const ADM_LISTS=()=>[...ROLL_G,...ROLL_S];
+const ADM_LISTS=()=>[...ROLL_G,...ROLL_S,...ROLL_P6];
 function admOptions(){const o=L=>`<option value="${L.key}" ${L.key===admKey?'selected':''}>${esc(L.name)}</option>`;
-  return `<optgroup label="專組">${ROLL_G.map(o).join('')}</optgroup><optgroup label="支援小組">${ROLL_S.map(o).join('')}</optgroup>`}
+  return `<optgroup label="專組">${ROLL_G.map(o).join('')}</optgroup><optgroup label="支援小組">${ROLL_S.map(o).join('')}</optgroup><optgroup label="升中輔導班">${ROLL_P6.map(o).join('')}</optgroup>`}
 function renderAdm(){
   if(!FB.isAdmin()){$('#main').innerHTML='<div class="empty">只有管理員可使用設定。</div>';return}
   if(!admKey) admKey=ADM_LISTS()[0].key;
@@ -550,7 +553,8 @@ function listPicker(){
     <option value="" ${listKey?'':'selected'}>請選擇小組…</option>
     <optgroup label="專組">${ROLL_G.map(opt).join('')}</optgroup>
     <optgroup label="支援小組">${ROLL_S.map(opt).join('')}</optgroup>
-    <optgroup label="大班">${ROLL_R.map(opt).join('')}</optgroup></select></label>`;
+    <optgroup label="大班">${ROLL_R.map(opt).join('')}</optgroup>
+    <optgroup label="升中輔導班">${ROLL_P6.map(opt).join('')}</optgroup></select></label>`;
 }
 function renderRoll(){
   if(!listKey){$('#main').innerHTML=listPicker()+(db?'':'<div class="warn">點名紀錄服務未連線，現只可查閱名單。</div>')+'<p class="hint">請先在上方選擇你負責的小組，便會顯示上課地點、老師及學生名單。</p><div class="more"><button class="btn" id="csvAll">匯出所有組別全年 CSV</button></div>';return}
@@ -627,7 +631,7 @@ function renderGrp(){
 }
 // ---------- 老師任教 ----------
 const TEACH={}; // name -> [[{L,i,p}]...] by date
-[...LISTS,...DATA.rotations.filter(NOROLL)].forEach(L=>D.forEach((d,i)=>{const p=perOf(L,i); (p.teachers||'').split(/[、,，]/).map(x=>x.replace(/（.*?）/g,'').replace(/([\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])/g,'$1').trim()).filter(Boolean).forEach(n=>{(TEACH[n]=TEACH[n]||[]).push({L,i,p,venue:(p.tv&&p.tv[n])||p.venue})})}));
+[...LISTS,...DATA.groups.filter(NOROLL),...DATA.rotations.filter(NOROLL)].forEach(L=>D.forEach((d,i)=>{const p=perOf(L,i); (p.teachers||'').split(/[、,，]/).map(x=>x.replace(/（.*?）/g,'').replace(/([\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])/g,'$1').trim()).filter(Boolean).forEach(n=>{(TEACH[n]=TEACH[n]||[]).push({L,i,p,venue:(p.tv&&p.tv[n])||p.venue})})}));
 const TORDER=DATA.torder||[];
 const TNAMES=TORDER; const TOTHER=Object.keys(TEACH).filter(n=>!TORDER.includes(n));
 let me=store.get('mi-me'); if(!TORDER.includes(me)&&!TEACH[me]) me='';

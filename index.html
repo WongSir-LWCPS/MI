@@ -140,6 +140,11 @@ details.away .st .who b{font-size:16px;color:var(--mute)}
 @media (max-width:480px){.cnt{gap:2px}.cnt span{min-width:0;flex:1;font-size:11.5px}.cnt b{font-size:18px}.foot{padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px))}.foot .btn.pri{padding:10px 10px;font-size:14px;white-space:nowrap;flex:0 0 auto}.foot .long{display:none}}
 .cnt b{order:-1;font-size:21px;color:var(--ink);font-weight:700}
 .cnt .c-P b{color:var(--ok)} .cnt .c-E b{color:var(--ex)} .cnt .c-A b{color:var(--bad)}
+em.sync{display:block;font-style:normal;font-size:12.5px;font-weight:500;margin-top:1px}
+em.sync.p{color:var(--late)} em.sync.ok{color:var(--done)} em.sync.err{color:var(--bad);font-weight:700}
+.syncst{max-width:1080px;margin:0 auto 6px;font-size:13px;font-weight:700;text-align:center;border-radius:8px;padding:0}
+.syncst:empty{display:none}
+.syncst.ok{color:var(--done)} .syncst.p{color:#8a5a00;background:#fff3d6;padding:4px 8px} .syncst.err{color:#fff;background:var(--bad);padding:4px 8px}
 /* tables */
 .tw{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:14px}
 table{border-collapse:collapse;font-size:13.5px;min-width:100%}
@@ -198,7 +203,7 @@ td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td
   </nav>
 </div></header>
 <main id="main"></main>
-<div class="foot hide" id="foot"><div class="foot-in">
+<div class="foot hide" id="foot"><div class="syncst" id="syncSt" role="status" aria-live="polite"></div><div class="foot-in">
   <div class="cnt" id="cnt"></div>
   <button class="btn pri" id="allP"><span class="long">未點者</span>全部出席</button>
 </div></div>
@@ -227,7 +232,7 @@ const EX={ // 完整字句
  '點名':'Roll Call','搜尋學生':'Students','專組名單':'Groups','班別名單':'Classes','小組老師':'Teachers',
  '選擇小組':'Select group','選擇專組':'Select group','選擇班別':'Select class','選擇老師':'Select teacher',
  '請選擇小組…':'Select a group…','請選擇你的名字…':'Select your name…',
- '專組':'Special Interest Groups','升中輔導班':'Secondary Prep Class','支援小組':'Support Groups','大班':'Class Groups',
+ '專組':'Special Interest Groups','升中輔導班':'Secondary Prep Class','✓ 已儲存':'✓ Saved','⏳ 上載中…':'⏳ Saving…','⏳ 離線，待上載':'⏳ Offline, queued','✗ 未能儲存，請再按一次':'✗ Not saved, tap again','⚠ 網絡中斷，點名會先暫存在本機':'⚠ Offline – marks are kept on this device','支援小組':'Support Groups','大班':'Class Groups',
  '地點':'Venue','老師':'Teacher','活動':'Activity','人數':'Total','大班 ':'Class group',
  '本次點名':'This session','全年紀錄':'Full year','本次名單':'This session','全年名單':'Full year','本節':'This session','全年':'Full year',
  '出席':'Present','缺席':'Absent','豁免':'Exempt','未點':'Unmarked','未點者':'','全部出席':'All present',
@@ -262,6 +267,7 @@ const NAMES=[ // 只翻譯地點用語；組別及活動名稱保留中文
  ['第一組','Group 1'],['第二組','Group 2'],['下學期開始','2nd term starts']
 ];
 const RX=[
+ [/^✓ 已全部儲存到系統（(\d+) 人）$/,'✓ All saved ($1)'],[/^⏳ 正在上載 (\d+) 項…$/,'⏳ Saving $1…'],[/^⚠ 網絡中斷：(\d+) 項已暫存在本機，恢復網絡後會自動上載$/,'⚠ Offline: $1 kept on device, will upload when back online'],[/^✗ (\d+) 項未能儲存，請再按一次$/,'✗ $1 not saved – tap again'],
  [/^第(\d+)次　(\d+)月(\d+)日（五）(　下學期開始)?$/,(m,a,mo,d,s)=>`#${a}  Fri ${d}/${mo}${s?'  (2nd term)':''}`],
  [/（已點 (\d+)\/(\d+)）/g,' ($1/$2 marked)'],[/（本次不設）/g,' (no session)'],[/^已點 (\d+)\/(\d+)$/,'$1/$2 marked'],[/人數 (\d+)　已點 (\d+)\/(\d+)/,'Total $1　$2/$3 marked'],
  [/^全年共 (\d+) 人，本次應到 (\d+) 人$/,'$1 members this year, $2 expected this session'],
@@ -342,7 +348,7 @@ const CJ=[['rP5Gr1','賽馬會成長機地 Group 1'],['rP5Gr2','賽馬會成長�
   r.name=n; r.cat='專組'; Object.keys(r.remarks||{}).forEach(s=>r.remarks[s]=r.remarks[s].replace('Group ','小組 ')); return r});
 const isP6=r=>/^r6/.test(r.key)||r.name==='升中輔導班精英組'; // 升中輔導班（六年級）
 const NOROLL=()=>false;
-const SUPPORT=['數學至叻星','童樂遊','LEGO天地','Master Board','乒乓小苗']; // 支援小組
+const SUPPORT=['數學至叻星','樂天雜耍','童樂遊','LEGO天地','Master Board','乒乓小苗']; // 支援小組
 DATA.groups.forEach(g=>{if(SUPPORT.includes(g.name))g.cat='支援小組'});
 const ROLL_G=DATA.groups.flatMap(g=>g.label==='成長機地'?CJ:((g.cat==='支援小組'||isP6(g))?[]:[g]));
 const ROLL_S=DATA.groups.filter(g=>g.cat==='支援小組');
@@ -573,7 +579,7 @@ function renderRoll(){
     if(!exp.length) h+=`<div class="empty">本次此名單沒有學生需要出席${L.kind==='g'?'（本組不設節數）':''}。</div>`;
     else{
       h+='<div class="list">'+exp.map(({s})=>{const v=m[s]||''; const rm=(L.remarks||{})[s];
-        return `<div class="st ${v}"><div class="who"><b>${esc(fmt(s))}</b></div>
+        return `<div class="st ${v}"><div class="who"><b>${esc(fmt(s))}</b>${syncBadge(L,s)}</div>
         <div class="btns">${['P','A','E'].map(k=>`<button data-s="${s}" data-v="${k}" aria-pressed="${v===k}" ${locked?'disabled':''}>${MARK[k]}</button>`).join('')}</div></div>`}).join('')+'</div>';
     }
     if(away.length) h+=`<details class="away"><summary>本次不在此名單上課的學生（${away.length} 人）</summary>${away.map(({s,st})=>`<div class="st"><div class="who"><b>${esc(fmt(s))}</b></div><span class="tag">${esc(st.why)}</span></div>`).join('')}</details>`;
@@ -584,6 +590,19 @@ function renderRoll(){
   const c={P:0,L:0,A:0,E:0}; exp.forEach(({s})=>{if(m[s])c[m[s]]++}); const un=exp.length-c.P-c.L-c.A-c.E;
   $('#cnt').innerHTML=`<span>人數<b>${exp.length}</b></span><span class="c-P">出席<b>${c.P+c.L}</b></span><span class="c-A">缺席<b>${c.A}</b></span><span class="c-E">豁免<b>${c.E}</b></span><span>未點<b>${un}</b></span>`;
   $('#allP').disabled=locked||!un;
+  const sc=syncCount(L.key,ymd(i)), done=c.P+c.L+c.A+c.E, el=$('#syncSt');
+  if(sc.e){el.className='syncst err';el.textContent=`✗ ${sc.e} 項未能儲存，請再按一次`}
+  else if(sc.p){el.className='syncst p';el.textContent=online?`⏳ 正在上載 ${sc.p} 項…`:`⚠ 網絡中斷：${sc.p} 項已暫存在本機，恢復網絡後會自動上載`}
+  else if(!online){el.className='syncst p';el.textContent='⚠ 網絡中斷，點名會先暫存在本機'}
+  else if(done){el.className='syncst ok';el.textContent=`✓ 已全部儲存到系統（${done} 人）`}
+  else {el.className='syncst';el.textContent=''}
+}
+function syncBadge(L,s){
+  const st=SYNC.get(skey(L.key,ymd(dateI),s));
+  if(st==='p') return `<em class="sync p">${online?'⏳ 上載中…':'⏳ 離線，待上載'}</em>`;
+  if(st==='ok') return '<em class="sync ok">✓ 已儲存</em>';
+  if(st==='err') return '<em class="sync err">✗ 未能儲存，請再按一次</em>';
+  return '';
 }
 function yearTable(L){
   let h='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,i)=>`<th class="${i===dateI?'cur':''}">${md(i)}</th>`).join('')+'<th>出席率</th></tr></thead><tbody>';
@@ -682,12 +701,22 @@ function subYear(){
       const a={}; snap.docs.forEach(d=>{const b=d.data(); if(b&&b.date) a[b.date]=b.marks||{}}); yearAtt=a; if(mode==='year')render();
     },e=>console.error(e));
 }
+// 上載狀態：p＝上載中，ok＝已儲存，err＝失敗
+const SYNC=new Map(); const skey=(lk,d,s)=>`${lk}|${d}|${s}`;
+let online=navigator.onLine; addEventListener('online',()=>{online=true;render()}); addEventListener('offline',()=>{online=false;render()});
+function syncCount(lk,d){let p=0,e=0;SYNC.forEach((v,k)=>{if(!k.endsWith('#')&&k.startsWith(lk+'|'+d+'|')){if(v==='p')p++;else if(v==='err')e++}});return {p,e}}
 function write(L,i,marks){
   const date=ymd(i), id=`${L.key}_${date}`;
+  const keys=Object.keys(marks).map(s=>skey(L.key,date,s)); keys.forEach(k=>SYNC.set(k,'p'));
+  const prev={}; Object.keys(marks).forEach(s=>prev[s]=(dayAtt[L.key]||{})[s]);
   const cur=Object.assign({},dayAtt[L.key]); Object.entries(marks).forEach(([k,v])=>{if(v)cur[k]=v;else delete cur[k]}); dayAtt[L.key]=cur; render();
   const m={}; Object.entries(marks).forEach(([k,v])=>m[k]=v?v:FB.deleteField());
+  const tag=Date.now()+Math.random(); keys.forEach(k=>SYNC.set(k+'#',tag));
   FB.setDoc(FB.doc(FB.db,'att',id),{list:L.key,date,marks:m,t:FB.serverTimestamp(),by:FB.email()},{merge:true})
-    .catch(e=>{console.error(e); if(e.code==='permission-denied'){canWrite=false;toast('你沒有點名權限');render()} else toast('儲存失敗，請再按一次')});
+    .then(()=>{ keys.forEach(k=>{ if(SYNC.get(k+'#')===tag){ SYNC.set(k,'ok'); setTimeout(()=>{ if(SYNC.get(k)==='ok'&&SYNC.get(k+'#')===tag){SYNC.delete(k);SYNC.delete(k+'#');render()} },3000) } }); render(); })
+    .catch(e=>{console.error(e); keys.forEach(k=>{ if(SYNC.get(k+'#')===tag) SYNC.set(k,'err') });
+      if(date===ymd(dateI)){ const d2=Object.assign({},dayAtt[L.key]); Object.keys(marks).forEach(s=>{ if(SYNC.get(skey(L.key,date,s)+'#')===tag){ if(prev[s]) d2[s]=prev[s]; else delete d2[s]; } }); dayAtt[L.key]=d2; }
+      if(e.code==='permission-denied'){canWrite=false;toast('你沒有點名權限')} else toast('儲存失敗，請再按一次'); render()});
 }
 function csvText(rows){return '\ufeff'+rows.map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(',')).join('\r\n')}
 function listRows(L,getMarks,withList){

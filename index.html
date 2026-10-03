@@ -197,7 +197,7 @@ td.P{color:var(--ok);font-weight:700} td.L{color:var(--late);font-weight:700} td
   <nav class="nav">
     <button data-page="roll" aria-current="page">點名</button>
     <button data-page="find" aria-current="false">搜尋學生</button>
-    <button data-page="grp" aria-current="false">專組名單</button>
+    <button data-page="grp" aria-current="false">小組名單</button>
     <button data-page="cls" aria-current="false">班別名單</button>
     <button data-page="me" aria-current="false">小組老師</button>
   </nav>
@@ -366,7 +366,7 @@ const md=i=>`${D[i].getDate()}/${D[i].getMonth()+1}`;
 const $=s=>document.querySelector(s);
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
 
-let grp=store.get('mi-grp')||DATA.groups[0].key; if(!DATA.groups.some(g=>g.key===grp)) grp=DATA.groups[0].key;
+let grp=store.get('mi-grp')||DATA.groups[0].key;
 let page='roll', listKey=null, dateI=pickDate(), mode='day', cls=store.get('mi-cls')||'1A', q='', stu=null;
 let db=null, canWrite=true, dayAtt={}, yearAtt={}, unDay=null, unYear=null;
 const chain={};
@@ -629,9 +629,11 @@ function renderFindRes_(){
   $('#findRes').innerHTML=h;
 }
 function renderGrp(){
-  const L=byKey[grp], i=dateI;
-  let h=`<label class="pick"><span>選擇專組</span><select id="grpSel">${DATA.groups.map(g=>`<option value="${g.key}" ${g.key===grp?'selected':''}>${esc(g.name)}（${g.members.length}人）</option>`).join('')}</select></label>
-  <div class="panel"><h2>${esc(L.name)}</h2><dl class="info"><dt>地點</dt><dd class="big">${esc(L.venue)}</dd><dt>老師</dt><dd>${esc(L.teachers)}</dd><dt>人數</dt><dd>全年共 ${L.members.length} 人，本次應到 ${L.members.filter(s=>status(L,s,i).exp).length} 人</dd></dl></div>
+  if(!LISTS.some(l=>l.key===grp)) grp=LISTS[0].key;
+  const L=byKey[grp], i=dateI, pp=perOf(L,i);
+  const o=g=>`<option value="${g.key}" ${g.key===grp?'selected':''}>${esc(g.name)}（${g.members.length}人）</option>`;
+  let h=`<label class="pick"><span>選擇小組</span><select id="grpSel"><optgroup label="專組">${ROLL_G.map(o).join('')}</optgroup><optgroup label="支援小組">${ROLL_S.map(o).join('')}</optgroup><optgroup label="大班">${ROLL_R.map(o).join('')}</optgroup><optgroup label="升中輔導班">${ROLL_P6.map(o).join('')}</optgroup></select></label>
+  <div class="panel"><h2>${esc(L.name)}</h2><dl class="info"><dt>地點</dt><dd class="big">${esc(pp.venue)}</dd><dt>老師</dt><dd>${esc(pp.teachers)}</dd>${L.kind==='r'?`<dt>活動</dt><dd>${esc(pp.act)}</dd>`:''}<dt>人數</dt><dd>全年共 ${L.members.length} 人，本次應到 ${L.members.filter(s=>status(L,s,i).exp).length} 人</dd></dl></div>
   <div class="seg" role="group"><button data-mode="day" aria-pressed="${mode==='day'}">本次名單</button><button data-mode="year" aria-pressed="${mode==='year'}">全年名單</button></div>`;
   if(mode==='year'){
     h+='<div class="tw"><table><thead><tr><th class="l">學生</th>'+D.map((d,j)=>`<th class="${j===i?'cur':''}">${md(j)}</th>`).join('')+'<th>節數</th><th class="l" style="position:static">備註</th></tr></thead><tbody>'+
